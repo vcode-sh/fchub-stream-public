@@ -226,6 +226,11 @@ abstract class ProviderConfigService {
 			// For non-encrypted fields, sanitize and save directly.
 			if ( 'enabled' === $field ) {
 				$current_config[ $provider ][ $field ] = (bool) $value;
+			} elseif ( 'customer_subdomain' === $field && 'cloudflare' === $provider ) {
+				// Normalize customer_subdomain for Cloudflare.
+				$normalized                            = static::normalize_customer_subdomain( $value );
+				$current_config[ $provider ][ $field ] = $normalized;
+				error_log( '[FCHub Stream] ProviderConfigService::save() - Saved normalized customer_subdomain: ' . substr( $normalized, 0, 50 ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			} else {
 				$current_config[ $provider ][ $field ] = sanitize_text_field( $value );
 				error_log( '[FCHub Stream] ProviderConfigService::save() - Saved field: ' . $field . ' = ' . substr( sanitize_text_field( $value ), 0, 50 ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -252,6 +257,20 @@ abstract class ProviderConfigService {
 
 		// Update configured_at timestamp.
 		$current_config[ $provider ]['configured_at'] = current_time( 'mysql' );
+
+		// Track provider configuration in PostHog.
+		if ( \FCHubStream\App\Services\PostHogService::is_initialized() ) {
+			$was_enabled = ! empty( $current_config[ $provider ]['enabled'] );
+			$is_enabled  = isset( $provider_data['enabled'] ) ? (bool) $provider_data['enabled'] : $was_enabled;
+
+			if ( $is_enabled && ! $was_enabled ) {
+				// Provider was just enabled.
+				\FCHubStream\App\Services\PostHogService::track_provider_config( $provider, true );
+			} elseif ( ! $is_enabled && $was_enabled ) {
+				// Provider was just disabled.
+				\FCHubStream\App\Services\PostHogService::track_provider_config( $provider, false, 'disabled' );
+			}
+		}
 
 		return array(
 			'success' => true,
@@ -332,6 +351,39 @@ abstract class ProviderConfigService {
 	 * @return array Test result with status and message.
 	 */
 	abstract protected static function perform_connection_test( array $config ): array;
+
+	/**
+	 * Normalize customer subdomain.
+	 *
+	 * Extracts only the subdomain part from customer_subdomain value.
+	 * Handles both full URLs and domain-only formats.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $customer_subdomain Raw customer subdomain value.
+	 *
+	 * @return string Normalized subdomain (e.g., 'customer-abc123').
+	 */
+	protected static function normalize_customer_subdomain( string $customer_subdomain ): string {
+		if ( empty( $customer_subdomain ) ) {
+			return '';
+		}
+
+		$normalized = sanitize_text_field( $customer_subdomain );
+
+		// If contains full URL, extract just the subdomain part.
+		if ( preg_match( '/https?:\/\/(customer-[a-z0-9]+)\.cloudflarestream\.com/', $normalized, $matches ) ) {
+			return $matches[1];
+		}
+
+		// If contains domain without protocol, extract subdomain.
+		if ( preg_match( '/^(customer-[a-z0-9]+)\.cloudflarestream\.com/', $normalized, $matches ) ) {
+			return $matches[1];
+		}
+
+		// Otherwise assume it's already just the subdomain (customer-xxx).
+		return $normalized;
+	}
 
 	/**
 	 * Validate provider configuration data.

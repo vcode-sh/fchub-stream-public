@@ -17,6 +17,7 @@ use WP_REST_Response;
 use WP_Error;
 use FCHubStream\App\Services\VideoUploadService;
 use FCHubStream\App\Services\SentryService;
+use FCHubStream\App\Services\PostHogService;
 
 /**
  * Video Upload Controller class.
@@ -41,17 +42,25 @@ class VideoUploadController {
 	 * @return WP_REST_Response|WP_Error Response with upload result or error.
 	 */
 	public function upload( WP_REST_Request $request ) {
-		SentryService::add_breadcrumb(
-			'Upload endpoint called',
-			'http',
-			'info',
-			array(
-				'method'       => $request->get_method(),
-				'route'        => $request->get_route(),
-				'user_id'      => get_current_user_id(),
-				'is_logged_in' => is_user_logged_in(),
-			)
-		);
+		// Safely add Sentry breadcrumb (don't break upload if Sentry fails).
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+				SentryService::add_breadcrumb(
+					'Upload endpoint called',
+					'http',
+					'info',
+					array(
+						'method'       => $request->get_method(),
+						'route'        => $request->get_route(),
+						'user_id'      => get_current_user_id(),
+						'is_logged_in' => is_user_logged_in(),
+					)
+				);
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue - don't break upload if Sentry fails.
+			error_log( '[FCHub Stream] Failed to add Sentry breadcrumb: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 
 		error_log( '[FCHub Stream] VideoUploadController::upload() - START' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[FCHub Stream] Request method: ' . $request->get_method() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -61,11 +70,18 @@ class VideoUploadController {
 		// Check permissions - must be logged in user.
 		// PortalPolicy may not work correctly with FluentCommunity router, so check directly.
 		if ( ! is_user_logged_in() ) {
-			SentryService::add_breadcrumb(
-				'Upload rejected: User not logged in',
-				'http',
-				'warning'
-			);
+			// Safely add Sentry breadcrumb (don't break upload if Sentry fails).
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Upload rejected: User not logged in',
+						'http',
+						'warning'
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
 
 			error_log( '[FCHub Stream] Upload rejected: User not logged in' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return new WP_Error(
@@ -271,16 +287,23 @@ class VideoUploadController {
 		$video_id = $request->get_param( 'video_id' );
 		$provider = $request->get_param( 'provider' );
 
-		SentryService::add_breadcrumb(
-			'Status check requested',
-			'http',
-			'info',
-			array(
-				'video_id' => $video_id,
-				'provider' => $provider,
-				'user_id'  => get_current_user_id(),
-			)
-		);
+		// Safely add Sentry breadcrumb (don't break status check if Sentry fails).
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+				SentryService::add_breadcrumb(
+					'Status check requested',
+					'http',
+					'info',
+					array(
+						'video_id' => $video_id,
+						'provider' => $provider,
+						'user_id'  => get_current_user_id(),
+					)
+				);
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue.
+		}
 
 		// Check permissions - must be logged in user.
 		if ( ! is_user_logged_in() ) {
@@ -318,6 +341,22 @@ class VideoUploadController {
 		}
 
 		$result = VideoUploadService::get_video_status( $video_id, $provider );
+
+		// Track status check in PostHog (safely).
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+				$status = 'unknown';
+				if ( ! is_wp_error( $result ) && isset( $result['status'] ) ) {
+					$status = $result['status'];
+				} elseif ( is_wp_error( $result ) ) {
+					$status = 'error';
+				}
+
+				PostHogService::track_status_check( $video_id, $provider, $status );
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue - don't break status check if tracking fails.
+		}
 
 		if ( is_wp_error( $result ) ) {
 			// If Cloudflare returns 500/404, video might not be ready yet - return pending status instead of error
@@ -375,48 +414,66 @@ class VideoUploadController {
 		$provider = $request->get_param( 'provider' );
 		$body     = $request->get_body();
 
-		// Start Sentry transaction for webhook processing.
-		$transaction = SentryService::start_transaction(
-			'webhook.process',
-			'http.server',
-			array(
-				'provider' => $provider,
-				'method'   => $request->get_method(),
-			)
-		);
+		// Start Sentry transaction for webhook processing (safely).
+		$transaction = null;
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+				$transaction = SentryService::start_transaction(
+					'webhook.process',
+					'http.server',
+					array(
+						'provider' => $provider,
+						'method'   => $request->get_method(),
+					)
+				);
 
-		// Set tags for webhook.
-		SentryService::set_tags(
-			array(
-				'webhook_provider' => $provider,
-				'webhook_source'   => 'video_encoding',
-			)
-		);
+				// Set tags for webhook.
+				SentryService::set_tags(
+					array(
+						'webhook_provider' => $provider,
+						'webhook_source'   => 'video_encoding',
+					)
+				);
 
-		SentryService::add_breadcrumb(
-			'Webhook received',
-			'http',
-			'info',
-			array(
-				'provider'     => $provider,
-				'method'       => $request->get_method(),
-				'route'        => $request->get_route(),
-				'content_type' => $request->get_content_type(),
-			)
-		);
+				SentryService::add_breadcrumb(
+					'Webhook received',
+					'http',
+					'info',
+					array(
+						'provider'     => $provider,
+						'method'       => $request->get_method(),
+						'route'        => $request->get_route(),
+						'content_type' => $request->get_content_type(),
+					)
+				);
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue - don't break webhook processing if Sentry fails.
+			error_log( '[FCHub Stream] Failed to initialize Sentry for webhook: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 
 		error_log( '[FCHub Stream] Webhook endpoint called - Method: ' . $request->get_method() . ', Route: ' . $request->get_route() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		if ( empty( $provider ) ) {
-			SentryService::add_breadcrumb(
-				'Webhook error: Provider missing',
-				'http',
-				'error'
-			);
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Webhook error: Provider missing',
+						'http',
+						'error'
+					);
 
-			if ( $transaction ) {
-				$transaction->setStatus( 'invalid_argument' );
-				$transaction->finish();
+					if ( $transaction ) {
+						try {
+							$transaction->setStatus( \Sentry\Tracing\SpanStatus::invalidArgument() );
+							$transaction->finish();
+						} catch ( \Exception $e2 ) {
+							// Silently continue.
+						}
+					}
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
 			}
 
 			error_log( '[FCHub Stream] Webhook error: Provider missing' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -430,7 +487,14 @@ class VideoUploadController {
 		error_log( '[FCHub Stream] Webhook provider: ' . $provider ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		// Verify webhook signature.
-		$verification_span = SentryService::start_span( $transaction, 'security', 'Verify webhook signature' );
+		$verification_span = null;
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) && $transaction ) {
+				$verification_span = SentryService::start_span( $transaction, 'security', 'Verify webhook signature' );
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue.
+		}
 
 		$verification = $this->verify_webhook_signature( $request, $provider );
 
@@ -439,27 +503,43 @@ class VideoUploadController {
 		}
 
 		if ( is_wp_error( $verification ) ) {
-			SentryService::add_breadcrumb(
-				'Webhook signature verification failed',
-				'http',
-				'error',
-				array( 'error' => $verification->get_error_message() )
-			);
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Webhook signature verification failed',
+						'http',
+						'error',
+						array( 'error' => $verification->get_error_message() )
+					);
 
-			if ( $transaction ) {
-				$transaction->setStatus( 'permission_denied' );
-				$transaction->finish();
+					if ( $transaction ) {
+						try {
+							$transaction->setStatus( \Sentry\Tracing\SpanStatus::permissionDenied() );
+							$transaction->finish();
+						} catch ( \Exception $e2 ) {
+							// Silently continue.
+						}
+					}
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
 			}
 
 			error_log( '[FCHub Stream] Webhook signature verification failed: ' . $verification->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return $verification;
 		}
 
-		SentryService::add_breadcrumb(
-			'Webhook signature verified',
-			'http',
-			'info'
-		);
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+				SentryService::add_breadcrumb(
+					'Webhook signature verified',
+					'http',
+					'info'
+				);
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue.
+		}
 
 		error_log( '[FCHub Stream] Webhook signature verified successfully' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
@@ -467,15 +547,25 @@ class VideoUploadController {
 		$data = $request->get_json_params();
 
 		if ( empty( $data ) ) {
-			SentryService::add_breadcrumb(
-				'Webhook error: Empty payload',
-				'http',
-				'error'
-			);
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Webhook error: Empty payload',
+						'http',
+						'error'
+					);
 
-			if ( $transaction ) {
-				$transaction->setStatus( 'invalid_argument' );
-				$transaction->finish();
+					if ( $transaction ) {
+						try {
+							$transaction->setStatus( \Sentry\Tracing\SpanStatus::invalidArgument() );
+							$transaction->finish();
+						} catch ( \Exception $e2 ) {
+							// Silently continue.
+						}
+					}
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
 			}
 
 			error_log( '[FCHub Stream] Webhook error: Empty payload. Body: ' . $request->get_body() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -494,25 +584,38 @@ class VideoUploadController {
 			$video_id = $data['VideoGuid'];
 		}
 
-		SentryService::add_breadcrumb(
-			'Webhook payload received',
-			'http',
-			'info',
-			array(
-				'video_id' => $video_id,
-				'provider' => $provider,
-			)
-		);
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+				SentryService::add_breadcrumb(
+					'Webhook payload received',
+					'http',
+					'info',
+					array(
+						'video_id' => $video_id,
+						'provider' => $provider,
+					)
+				);
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue.
+		}
 
 		error_log( '[FCHub Stream] Webhook payload received: ' . wp_json_encode( $data ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		// Process webhook based on provider.
-		$processing_span = SentryService::start_span(
-			$transaction,
-			'db.query',
-			'Process webhook and update database',
-			array( 'video_id' => $video_id )
-		);
+		$processing_span = null;
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) && $transaction ) {
+				$processing_span = SentryService::start_span(
+					$transaction,
+					'db.query',
+					'Process webhook and update database',
+					array( 'video_id' => $video_id )
+				);
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue.
+		}
 
 		if ( 'cloudflare_stream' === $provider ) {
 			$result = $this->process_cloudflare_webhook( $data );
@@ -531,31 +634,51 @@ class VideoUploadController {
 		}
 
 		if ( is_wp_error( $result ) ) {
-			SentryService::add_breadcrumb(
-				'Webhook processing failed',
-				'http',
-				'error',
-				array(
-					'error'    => $result->get_error_message(),
-					'video_id' => $video_id,
-				)
-			);
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Webhook processing failed',
+						'http',
+						'error',
+						array(
+							'error'    => $result->get_error_message(),
+							'video_id' => $video_id,
+						)
+					);
 
-			if ( $transaction ) {
-				$transaction->setStatus( 'internal_error' );
-				$transaction->finish();
+					if ( $transaction ) {
+						try {
+							$transaction->setStatus( \Sentry\Tracing\SpanStatus::internalError() );
+							$transaction->finish();
+						} catch ( \Exception $e2 ) {
+							// Silently continue.
+						}
+					}
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
 			}
 		} else {
-			SentryService::add_breadcrumb(
-				'Webhook processed successfully',
-				'http',
-				'info',
-				array( 'video_id' => $video_id )
-			);
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Webhook processed successfully',
+						'http',
+						'info',
+						array( 'video_id' => $video_id )
+					);
 
-			if ( $transaction ) {
-				$transaction->setStatus( 'ok' );
-				$transaction->finish();
+					if ( $transaction ) {
+						try {
+							$transaction->setStatus( \Sentry\Tracing\SpanStatus::ok() );
+							$transaction->finish();
+						} catch ( \Exception $e2 ) {
+							// Silently continue.
+						}
+					}
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
 			}
 		}
 
@@ -685,9 +808,30 @@ class VideoUploadController {
 		$err_reason_code = $data['status']['errReasonCode'] ?? $data['status']['errorReasonCode'] ?? '';
 		$err_reason_text = $data['status']['errReasonText'] ?? $data['status']['errorReasonText'] ?? '';
 
-		error_log( '[FCHub Stream] Cloudflare webhook received - video_id: ' . $video_uid . ', ready: ' . ( $ready_to_stream ? 'YES' : 'NO' ) . ', state: ' . $status_state ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		// Log webhook receipt (only in debug mode to avoid log spam).
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( '[FCHub Stream] Cloudflare webhook received - video_id: ' . $video_uid . ', ready: ' . ( $ready_to_stream ? 'YES' : 'NO' ) . ', state: ' . $status_state ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 
 		if ( empty( $video_uid ) ) {
+			// Track in Sentry.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::capture_message(
+						'Cloudflare webhook missing video UID',
+						'error',
+						array(
+							'context' => array(
+								'component'    => 'webhook',
+								'provider'     => 'cloudflare',
+								'payload_keys' => array_keys( $data ),
+							),
+						)
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
 			return new WP_Error(
 				'invalid_payload',
 				__( 'Video UID missing in webhook payload.', 'fchub-stream' ),
@@ -697,7 +841,46 @@ class VideoUploadController {
 
 		// Handle error state - according to Cloudflare docs, status.state can be 'error'.
 		if ( 'error' === $status_state ) {
-			error_log( '[FCHub Stream] Video encoding failed - video_id: ' . $video_uid . ', error_code: ' . $err_reason_code . ', error_text: ' . $err_reason_text ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			$error_msg = 'Video encoding failed - video_id: ' . $video_uid . ', error_code: ' . $err_reason_code . ', error_text: ' . $err_reason_text;
+			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			// Track encoding failure in Sentry.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::capture_message(
+						$error_msg,
+						'error',
+						array(
+							'context' => array(
+								'component'  => 'webhook',
+								'provider'   => 'cloudflare',
+								'video_id'   => $video_uid,
+								'error_code' => $err_reason_code,
+								'error_text' => $err_reason_text,
+							),
+						)
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
+
+			// Track encoding failure in PostHog (safely).
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+					$provider = 'cloudflare'; // This is Cloudflare webhook.
+					PostHogService::track_encoding_failed(
+						$video_uid,
+						$provider,
+						$err_reason_code,
+						$err_reason_text,
+						array()
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
+
 			// Update posts/comments with failed status.
 			$this->update_video_status_in_db( $video_uid, 'failed', null, $err_reason_code, $err_reason_text );
 			return new WP_REST_Response(
@@ -730,8 +913,6 @@ class VideoUploadController {
 			)
 		);
 
-		error_log( '[FCHub Stream] Found ' . count( $posts ) . ' posts and ' . count( $comments ) . ' comments with video_id: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-
 		// Update status and HTML if ready.
 		// Important: Only mark as ready if video has playback URLs available.
 		// Cloudflare may set readyToStream=true before playback URLs are accessible.
@@ -740,10 +921,83 @@ class VideoUploadController {
 			$has_playback = isset( $data['playback']['hls'] ) && ! empty( $data['playback']['hls'] );
 
 			if ( $has_playback ) {
-				error_log( '[FCHub Stream] Video has playback URLs - marking as ready' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				// Log only in debug mode.
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( '[FCHub Stream] Video has playback URLs - marking as ready. Found ' . count( $posts ) . ' posts and ' . count( $comments ) . ' comments with video_id: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
 				$this->update_video_status_in_db( $video_uid, 'ready', $video_uid );
+
+				// Track encoding time in PostHog (safely).
+				try {
+					if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+						$upload_timestamp = get_transient( 'fchub_stream_upload_time_' . $video_uid );
+						if ( $upload_timestamp ) {
+							$encoding_time = time() - $upload_timestamp;
+							$provider      = 'cloudflare'; // This is Cloudflare webhook.
+
+							// Get video metadata from webhook payload if available.
+							$file_size_mb = 0;
+							$format       = 'unknown';
+							if ( isset( $data['meta']['original']['size'] ) ) {
+								$file_size_mb = round( $data['meta']['original']['size'] / 1024 / 1024, 2 );
+							}
+							if ( isset( $data['meta']['original']['format'] ) ) {
+								$format = strtolower( $data['meta']['original']['format'] );
+							}
+
+							// Get upload duration from transient if available.
+							$upload_time_seconds = get_transient( 'fchub_stream_upload_duration_' . $video_uid );
+							if ( false === $upload_time_seconds ) {
+								$upload_time_seconds = 0; // Not available, will use 0.
+							}
+
+							PostHogService::track_encoding_time(
+								$encoding_time,
+								$provider,
+								array(
+									'video_id'            => $video_uid,
+									'file_size_mb'        => $file_size_mb,
+									'format'              => $format,
+									'upload_start_time'   => $upload_timestamp, // Pass upload start time.
+									'upload_time_seconds' => $upload_time_seconds, // Pass upload duration for total calculation.
+								)
+							);
+
+							// Clean up transients.
+							delete_transient( 'fchub_stream_upload_time_' . $video_uid );
+							delete_transient( 'fchub_stream_upload_duration_' . $video_uid );
+						}
+					}
+				} catch ( \Exception $e ) {
+					// Silently continue.
+				}
 			} else {
-				error_log( '[FCHub Stream] Video readyToStream=true but no playback URLs yet - keeping as pending' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				// Log warning and track in Sentry - video may not be fully ready.
+				$warning_msg = 'Video readyToStream=true but no playback URLs yet - keeping as pending. Video ID: ' . $video_uid;
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( '[FCHub Stream] ' . $warning_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
+
+				// Track in Sentry for monitoring.
+				try {
+					if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+						SentryService::capture_message(
+							$warning_msg,
+							'warning',
+							array(
+								'context' => array(
+									'component'        => 'webhook',
+									'provider'         => 'cloudflare',
+									'video_id'         => $video_uid,
+									'ready_to_stream'  => $ready_to_stream,
+									'has_playback_hls' => isset( $data['playback']['hls'] ),
+								),
+							)
+						);
+					}
+				} catch ( \Exception $e ) {
+					// Silently continue.
+				}
 				// Don't update status - video not fully ready yet.
 			}
 		}
@@ -789,6 +1043,72 @@ class VideoUploadController {
 				__( 'Video GUID missing in webhook payload.', 'fchub-stream' ),
 				array( 'status' => 400 )
 			);
+		}
+
+		// Bunny.net status: 0 = pending, 2 = processing, 4 = finished/ready, 5 = error.
+		// Track encoding failure when status = 5 (safely).
+		if ( 5 === $status ) {
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+					$provider      = 'bunny'; // This is Bunny webhook.
+					$error_code    = $data['error'] ?? 'unknown';
+					$error_message = $data['error_message'] ?? 'Encoding failed';
+
+					PostHogService::track_encoding_failed(
+						$video_guid,
+						$provider,
+						$error_code,
+						$error_message,
+						array()
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
+		}
+
+		// Track encoding time when video is ready (status = 4) (safely).
+		if ( 4 === $status ) {
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+					$upload_timestamp = get_transient( 'fchub_stream_upload_time_' . $video_guid );
+					if ( $upload_timestamp ) {
+						$encoding_time = time() - $upload_timestamp;
+						$provider      = 'bunny'; // This is Bunny webhook.
+
+						// Get video metadata from webhook payload if available.
+						$file_size_mb = 0;
+						$format       = 'unknown';
+						if ( isset( $data['FileSize'] ) ) {
+							$file_size_mb = round( $data['FileSize'] / 1024 / 1024, 2 );
+						}
+
+						// Get upload duration from transient if available.
+						$upload_time_seconds = get_transient( 'fchub_stream_upload_duration_' . $video_guid );
+						if ( false === $upload_time_seconds ) {
+							$upload_time_seconds = 0; // Not available, will use 0.
+						}
+
+						PostHogService::track_encoding_time(
+							$encoding_time,
+							$provider,
+							array(
+								'video_id'            => $video_guid,
+								'file_size_mb'        => $file_size_mb,
+								'format'              => $format,
+								'upload_start_time'   => $upload_timestamp, // Pass upload start time.
+								'upload_time_seconds' => $upload_time_seconds, // Pass upload duration for total calculation.
+							)
+						);
+
+						// Clean up transients.
+						delete_transient( 'fchub_stream_upload_time_' . $video_guid );
+						delete_transient( 'fchub_stream_upload_duration_' . $video_guid );
+					}
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
 		}
 
 		// TODO: Update video status in database or notify user.
@@ -934,5 +1254,226 @@ class VideoUploadController {
 		);
 
 		return $messages[ $error_code ] ?? __( 'Unknown upload error.', 'fchub-stream' );
+	}
+
+	/**
+	 * Track PostHog event from frontend.
+	 *
+	 * Handles POST /stream/track-event endpoint.
+	 * Allows frontend to send analytics events to PostHog via backend.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param WP_REST_Request $request REST API request object.
+	 *
+	 * @return WP_REST_Response|WP_Error Response with result or error.
+	 */
+	public function track_event( WP_REST_Request $request ) {
+		// Check permissions - must be logged in user.
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error(
+				'unauthorized',
+				__( 'You must be logged in to track events.', 'fchub-stream' ),
+				array( 'status' => 401 )
+			);
+		}
+
+		// Verify nonce for CSRF protection.
+		// Note: For admin users with manage_options capability, we allow nonce verification to fail gracefully
+		// if nonce is missing (admin app may use different nonce mechanism), but we still verify if nonce is provided.
+		// For regular users, nonce is required for security.
+		$nonce    = $request->get_header( 'X-WP-Nonce' );
+		$is_admin = current_user_can( 'manage_options' );
+
+		if ( $nonce && ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+			// Nonce was provided but invalid - reject request.
+			error_log( '[FCHub Stream] Track event nonce verification failed. Nonce present: YES but invalid, User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) . ', User can manage_options: ' . ( $is_admin ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			return new WP_Error(
+				'invalid_nonce',
+				__( 'Invalid security token. Please refresh the page and try again.', 'fchub-stream' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// If nonce is missing:
+		// - For admin users: allow it (admin app may not send nonce, but user is authenticated).
+		// - For regular users: require nonce for CSRF protection.
+		if ( ! $nonce && ! $is_admin ) {
+			error_log( '[FCHub Stream] Track event nonce missing for non-admin user. User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			return new WP_Error(
+				'missing_nonce',
+				__( 'Security token is required. Please refresh the page and try again.', 'fchub-stream' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Parse JSON data from request using robust parsing method.
+		// Try multiple methods: get_json_params(), php://input, get_body(), get_params().
+		$data     = $request->get_json_params();
+		$raw_body = null;
+
+		// If get_json_params() returned empty array or null, try php://input.
+		if ( empty( $data ) || ! is_array( $data ) ) {
+			$raw_body = file_get_contents( 'php://input' );
+			if ( ! empty( $raw_body ) ) {
+				$decoded = json_decode( $raw_body, true );
+				if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) && ! empty( $decoded ) ) {
+					$data = $decoded;
+				}
+			}
+		}
+
+		// If still empty, try get_body().
+		if ( ( empty( $data ) || ! is_array( $data ) ) && empty( $raw_body ) ) {
+			$request_body = $request->get_body();
+			if ( ! empty( $request_body ) ) {
+				$decoded = json_decode( $request_body, true );
+				if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) && ! empty( $decoded ) ) {
+					$data = $decoded;
+				}
+			}
+		}
+
+		// If still empty, try get_params() as last resort.
+		if ( empty( $data ) || ! is_array( $data ) ) {
+			$params = $request->get_params();
+			unset( $params['_method'], $params['rest_route'] );
+			if ( ! empty( $params ) && is_array( $params ) ) {
+				$data = $params;
+			}
+		}
+
+		// Check if JSON decode failed (only if we tried manual parsing).
+		if ( null === $data && ! empty( $raw_body ) && json_last_error() !== JSON_ERROR_NONE ) {
+			// Log error and send to Sentry.
+			$error_msg = 'Track event JSON decode failed: ' . json_last_error_msg();
+			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			// Track in Sentry.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::capture_message(
+						$error_msg,
+						'error',
+						array(
+							'context' => array(
+								'component'    => 'track_event',
+								'request_body' => substr( $raw_body, 0, 500 ),
+							),
+						)
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
+
+			return new WP_Error(
+				'invalid_json',
+				__( 'Invalid JSON in request body.', 'fchub-stream' ) . ' ' . json_last_error_msg(),
+				array( 'status' => 400 )
+			);
+		}
+
+		// If data is null (empty body) or not an array, return error.
+		if ( null === $data || ! is_array( $data ) ) {
+			$error_msg = 'Track event data is null or not array';
+			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			// Track in Sentry.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::capture_message(
+						$error_msg,
+						'error',
+						array(
+							'context' => array(
+								'component' => 'track_event',
+								'data_type' => gettype( $data ),
+							),
+						)
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
+
+			return new WP_Error(
+				'invalid_data',
+				__( 'Request body must be a valid JSON object.', 'fchub-stream' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( empty( $data['event'] ) ) {
+			$error_msg = 'Track event missing event name. Data keys: ' . wp_json_encode( array_keys( $data ) );
+			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			// Track in Sentry.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::capture_message(
+						'Track event missing event name',
+						'error',
+						array(
+							'context' => array(
+								'component' => 'track_event',
+								'data_keys' => array_keys( $data ),
+							),
+						)
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
+
+			return new WP_Error(
+				'missing_event',
+				__( 'Event name is required.', 'fchub-stream' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$event      = sanitize_text_field( $data['event'] );
+		$properties = isset( $data['properties'] ) && is_array( $data['properties'] ) ? $data['properties'] : array();
+
+		// Detect app context from request referer or explicit property.
+		// Portal: FluentCommunity portal pages (contains 'portal' or 'feed' in URL).
+		// Admin: WordPress admin pages (contains 'wp-admin' or 'admin' in URL).
+		$referer          = $request->get_header( 'Referer' ) ?? '';
+		$explicit_context = $properties['app_context'] ?? null;
+
+		if ( $explicit_context ) {
+			$app_context = sanitize_text_field( $explicit_context );
+		} elseif ( strpos( $referer, 'wp-admin' ) !== false || strpos( $referer, '/admin' ) !== false ) {
+			$app_context = 'admin';
+		} elseif ( strpos( $referer, 'portal' ) !== false || strpos( $referer, 'feed' ) !== false ) {
+			$app_context = 'portal';
+		} else {
+			// Default to portal if cannot determine (most common use case).
+			$app_context = 'portal';
+		}
+
+		// Add app context to properties (override if already set).
+		$properties['app_context'] = $app_context;
+
+		// Track event in PostHog (safely).
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+				PostHogService::capture_event( $event, $properties );
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue - don't break event tracking if PostHog fails.
+			error_log( '[FCHub Stream] Failed to track event in PostHog: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Event tracked successfully.', 'fchub-stream' ),
+			),
+			200
+		);
 	}
 }

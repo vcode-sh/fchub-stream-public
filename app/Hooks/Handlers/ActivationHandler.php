@@ -13,6 +13,8 @@
 
 namespace FCHubStream\App\Hooks\Handlers;
 
+use FCHubStream\App\Services\PostHogService;
+
 /**
  * Class ActivationHandler
  *
@@ -40,6 +42,23 @@ class ActivationHandler {
 	 * @return void
 	 */
 	public static function handle( $network_wide = false ) {
+		// Track activation event.
+		// Initialize PostHog if not already done (activation hook runs early).
+		if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) ) {
+			// Try to initialize PostHog (will only work if API key is configured).
+			PostHogService::init();
+
+			if ( PostHogService::is_initialized() ) {
+				// Check if this is first activation (no config exists yet).
+				$config              = get_option( 'fchub_stream_config', null );
+				$is_first_activation = null === $config;
+
+				PostHogService::track_plugin_activation( $network_wide, $is_first_activation );
+				// Flush to ensure event is sent immediately.
+				PostHogService::flush();
+			}
+		}
+
 		if ( $network_wide ) {
 			global $wpdb;
 			$old_blog = $wpdb->blogid;

@@ -6,7 +6,34 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ## [Unreleased]
 
-Nothing yet. Check back when something breaks or improves.
+### ✨ New Features
+
+**PostHog Analytics Integration**
+- Added PostHog analytics tracking for user behavior analysis
+- Track video uploads, provider configurations, and user interactions
+- Configurable via admin settings with connection testing
+- GDPR-compliant with anonymous user tracking for non-logged-in users
+- Automatic event tracking for key actions (video uploads, provider changes)
+
+### 🔧 Technical Changes
+
+- Added `posthog/posthog-php` dependency for analytics tracking
+- New `PostHogService` class with comprehensive tracking methods
+- Extended configuration system to support PostHog settings
+- Added PostHog tab to admin interface with full configuration UI
+- REST API endpoints: `/config/posthog`, `/config/posthog/test`
+
+### 📊 Analytics Events
+
+**Automatic Tracking:**
+- `video_upload` - File size, duration, format, provider, source
+- `provider_config` - Provider enable/disable events
+- `video_view` - Video playback tracking (future implementation)
+
+**User Properties:**
+- Plugin version, WordPress version, PHP version, environment
+- Active stream provider, user role (for logged-in users)
+- Anonymous ID generation for non-authenticated users
 
 ---
 

@@ -14,6 +14,7 @@ use WP_REST_Response;
 use WP_Error;
 use FCHubStream\App\Services\StreamConfigService;
 use FCHubStream\App\Services\SentryService;
+use FCHubStream\App\Services\PostHogService;
 use FCHubStream\App\Models\StreamConfig;
 
 /**
@@ -137,7 +138,8 @@ class StreamConfigController {
 			}
 
 			// Get current config.
-			$config = StreamConfig::get();
+			$config       = StreamConfig::get();
+			$old_provider = $config['provider'] ?? 'unknown';
 
 			// Update provider.
 			$config['provider'] = $provider;
@@ -151,6 +153,11 @@ class StreamConfigController {
 					__( 'Failed to update provider.', 'fchub-stream' ),
 					array( 'status' => 500 )
 				);
+			}
+
+			// Track provider switch in PostHog if provider actually changed.
+			if ( PostHogService::is_initialized() && $old_provider !== $provider ) {
+				PostHogService::track_provider_switched( $old_provider, $provider );
 			}
 
 			return new WP_REST_Response(

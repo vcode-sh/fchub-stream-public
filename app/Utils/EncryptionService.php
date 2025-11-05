@@ -54,7 +54,12 @@ class EncryptionService {
 	 * @return string Encryption key derived from WordPress salts.
 	 */
 	private static function get_encryption_key() {
-		return wp_salt( 'fchub_stream_encryption' );
+		// Check if wp_salt() is available (WordPress must be loaded).
+		if ( ! function_exists( 'wp_salt' ) ) {
+			error_log( '[FCHub Stream] wp_salt() not available - WordPress not fully loaded' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return false;
+		}
+		return \wp_salt( 'fchub_stream_encryption' );
 	}
 
 	/**
@@ -73,7 +78,12 @@ class EncryptionService {
 	 * @return string 16-byte initialization vector for AES-256-CBC.
 	 */
 	private static function get_iv() {
-		$salt = wp_salt( 'fchub_stream_iv' );
+		// Check if wp_salt() is available (WordPress must be loaded).
+		if ( ! function_exists( 'wp_salt' ) ) {
+			error_log( '[FCHub Stream] wp_salt() not available - WordPress not fully loaded' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return false;
+		}
+		$salt = \wp_salt( 'fchub_stream_iv' );
 		return substr( $salt, 0, 16 ); // AES-256-CBC requires 16-byte IV.
 	}
 
@@ -109,6 +119,12 @@ class EncryptionService {
 
 		$key = self::get_encryption_key();
 		$iv  = self::get_iv();
+
+		// If wp_salt() is not available, we can't encrypt.
+		if ( false === $key || false === $iv ) {
+			error_log( '[FCHub Stream] Cannot encrypt - wp_salt() not available (WordPress not fully loaded)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return false;
+		}
 
 		if ( ! function_exists( 'openssl_encrypt' ) ) {
 			error_log( '[FCHub Stream] OpenSSL not available for encryption' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -162,6 +178,12 @@ class EncryptionService {
 
 		$key = self::get_encryption_key();
 		$iv  = self::get_iv();
+
+		// If wp_salt() is not available, we can't decrypt.
+		if ( false === $key || false === $iv ) {
+			error_log( '[FCHub Stream] Cannot decrypt - wp_salt() not available (WordPress not fully loaded)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return false;
+		}
 
 		if ( ! function_exists( 'openssl_decrypt' ) ) {
 			error_log( '[FCHub Stream] OpenSSL not available for decryption' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log

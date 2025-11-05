@@ -40,6 +40,7 @@
     "require": {
         "php": ">=8.3",
         "pusher/pusher-php-server": "^7.2.7",
+        "posthog/posthog-php": "^3.2",
         "sentry/sentry": "^4.17",
         "yahnis-elsts/plugin-update-checker": "^5.5"
     },

@@ -497,6 +497,63 @@
             "install-path": "../paragonie/sodium_compat"
         },
         {
+            "name": "posthog/posthog-php",
+            "version": "3.7.2",
+            "version_normalized": "3.7.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PostHog/posthog-php.git",
+                "reference": "ec37f1eba9a18d9e8f0efd71cdcac66512ec451c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PostHog/posthog-php/zipball/ec37f1eba9a18d9e8f0efd71cdcac66512ec451c",
+                "reference": "ec37f1eba9a18d9e8f0efd71cdcac66512ec451c",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "php": ">=8.0"
+            },
+            "require-dev": {
+                "overtrue/phplint": "^3.0",
+                "phpunit/phpunit": "^9.0",
+                "slope-it/clock-mock": "^0.4.0",
+                "squizlabs/php_codesniffer": "^3.7"
+            },
+            "time": "2025-10-23T00:40:34+00:00",
+            "bin": [
+                "bin/posthog"
+            ],
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "PostHog\\": "lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PostHog <hey@posthog.com>",
+                    "homepage": "https://posthog.com/"
+                }
+            ],
+            "description": "PostHog PHP Library",
+            "homepage": "https://github.com/PostHog/posthog-php",
+            "keywords": [
+                "posthog"
+            ],
+            "support": {
+                "issues": "https://github.com/PostHog/posthog-php/issues",
+                "source": "https://github.com/PostHog/posthog-php/tree/3.7.2"
+            },
+            "install-path": "../posthog/posthog-php"
+        },
+        {
             "name": "psr/http-client",
             "version": "1.0.3",
             "version_normalized": "1.0.3.0",

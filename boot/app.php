@@ -51,6 +51,31 @@ return function ( $file ) {
 	}
 
 	/**
+	 * Initialize PostHog analytics EARLY.
+	 *
+	 * Initialize PostHog as early as possible to capture all user events,
+	 * including those during plugin initialization. Safe to call even
+	 * if PostHog is disabled - will fail silently.
+	 *
+	 * @since 1.1.0
+	 */
+	if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) ) {
+		\FCHubStream\App\Services\PostHogService::init();
+
+		// Register shutdown hook to flush PostHog events before script termination.
+		// This ensures events are sent even if script ends unexpectedly.
+		add_action(
+			'shutdown',
+			function () {
+				if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) ) {
+					\FCHubStream\App\Services\PostHogService::flush();
+				}
+			},
+			999 // High priority to run late but before other shutdown hooks.
+		);
+	}
+
+	/**
 	 * Register video deletion hooks EARLY (before portal loads).
 	 *
 	 * CRITICAL: These hooks must be registered immediately because they can be

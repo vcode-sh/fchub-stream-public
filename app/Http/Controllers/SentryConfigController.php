@@ -9,30 +9,31 @@
 
 namespace FCHubStream\App\Http\Controllers;
 
-use FCHubStream\App\Http\Controllers\Traits\ParsesJsonRequest;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
-use FCHubStream\App\Models\StreamConfig;
 use FCHubStream\App\Services\SentryService;
 
 /**
  * Sentry Configuration Controller.
  *
- * Handles REST API endpoints for managing Sentry error monitoring configuration.
- * Provides get, save, and test operations for Sentry settings.
+ * Handles REST API endpoints for Sentry error monitoring.
+ * Provides get and test operations for Sentry settings.
+ *
+ * NOTE: Sentry configuration is hardcoded in config/app.php (developer-only).
+ * End users do NOT configure Sentry - it's automatic. This controller is mainly
+ * for testing/debugging purposes during development.
  *
  * @since 1.0.0
  */
 class SentryConfigController {
 
-	use ParsesJsonRequest;
-
 	/**
 	 * Get Sentry configuration.
 	 *
-	 * Retrieves current Sentry settings (DSN and enabled status).
-	 * Returns full DSN for frontend initialization (DSN is safe to expose).
+	 * Retrieves current Sentry settings from hardcoded config/app.php.
+	 * Returns DSN and enabled status for frontend initialization.
+	 * DSN is safe to expose to frontend (it's a public key, not a secret).
 	 *
 	 * @since 1.0.0
 	 *
@@ -41,89 +42,28 @@ class SentryConfigController {
 	 * @return WP_REST_Response Response object with configuration data.
 	 */
 	public function get( WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by REST API interface.
-		$config        = StreamConfig::get();
-		$sentry_config = $config['sentry'] ?? array(
-			'enabled' => false,
-			'dsn'     => '',
-		);
+		// Read hardcoded config from config/app.php (developer-only, not user-configurable).
+		$app_config = include FCHUB_STREAM_DIR . 'config/app.php';
+		$dsn        = $app_config['sentry_dsn'] ?? '';
+		$enabled    = ! empty( $dsn );
 
-		// Return full DSN for frontend Sentry SDK initialization.
-		// DSN is a public key (not a secret) and is safe to expose to frontend.
+		// Get traces_sample_rate from hardcoded config if set.
+		$traces_sample_rate = null;
+		if ( isset( $app_config['sentry_traces_sample_rate'] ) && null !== $app_config['sentry_traces_sample_rate'] ) {
+			$traces_sample_rate = (float) $app_config['sentry_traces_sample_rate'];
+		}
+
 		return new WP_REST_Response(
 			array(
 				'success' => true,
 				'config'  => array(
-					'enabled' => ! empty( $sentry_config['enabled'] ),
-					'dsn'     => $sentry_config['dsn'] ?? '',
+					'enabled'            => $enabled,
+					'dsn'                => $dsn,
+					'traces_sample_rate' => $traces_sample_rate,
 				),
 			),
 			200
 		);
-	}
-
-	/**
-	 * Save Sentry configuration.
-	 *
-	 * Updates Sentry settings (DSN and enabled status).
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param WP_REST_Request $request REST request object with Sentry configuration.
-	 *
-	 * @return WP_REST_Response|WP_Error Response with success message, or error on failure.
-	 */
-	public function save( WP_REST_Request $request ) {
-		try {
-			// Parse JSON request data using trait method.
-			$data = $this->parse_json_request( $request );
-
-			if ( empty( $data ) || ! is_array( $data ) ) {
-				return new WP_Error(
-					'invalid_data',
-					__( 'Invalid configuration data.', 'fchub-stream' ),
-					array( 'status' => 400 )
-				);
-			}
-
-			// Get current config.
-			$config = StreamConfig::get();
-
-			// Update Sentry config.
-			$config['sentry'] = array(
-				'enabled' => ! empty( $data['enabled'] ),
-				'dsn'     => isset( $data['dsn'] ) ? sanitize_text_field( $data['dsn'] ) : '',
-			);
-
-			// Save updated config.
-			$saved = StreamConfig::save( $config );
-
-			if ( ! $saved ) {
-				return new WP_Error(
-					'save_failed',
-					__( 'Failed to save Sentry configuration.', 'fchub-stream' ),
-					array( 'status' => 500 )
-				);
-			}
-
-			return new WP_REST_Response(
-				array(
-					'success' => true,
-					'message' => __( 'Sentry configuration saved successfully.', 'fchub-stream' ),
-				),
-				200
-			);
-		} catch ( \Exception $e ) {
-			error_log( '[FCHub Stream] Exception in SentryConfigController::save: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-
-			// Capture exception to Sentry (if initialized).
-			SentryService::capture_exception( $e );
-
-			return new WP_Error(
-				'save_exception',
-				__( 'An error occurred while saving Sentry configuration.', 'fchub-stream' ) . ' ' . $e->getMessage(),
-				array( 'status' => 500 )
-			);
-		}
 	}
 
 	/**

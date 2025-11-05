@@ -16,6 +16,7 @@ use FCHubStream\App\Http\Controllers\VideoUploadController;
 use FCHubStream\App\Http\Controllers\UploadSettingsController;
 use FCHubStream\App\Http\Controllers\CommentVideoSettingsController;
 use FCHubStream\App\Http\Controllers\SentryConfigController;
+use FCHubStream\App\Http\Controllers\PostHogConfigController;
 
 /**
  * Stream Configuration Routes.
@@ -54,10 +55,16 @@ $router->group(
 		$router->post( 'settings/comment-video', array( CommentVideoSettingsController::class, 'save' ) );
 		$router->post( 'settings/comment-video/reset', array( CommentVideoSettingsController::class, 'reset' ) );
 
-		// Sentry configuration (Admin endpoint).
+		// Sentry configuration (read-only - config is hardcoded in config/app.php).
 		$router->get( 'config/sentry', array( SentryConfigController::class, 'get' ) );
-		$router->post( 'config/sentry', array( SentryConfigController::class, 'save' ) );
 		$router->post( 'config/sentry/test', array( SentryConfigController::class, 'test' ) );
+
+		// PostHog configuration (Admin endpoint - test only, config is hardcoded in config/app.php).
+		$router->post( 'config/posthog/test', array( PostHogConfigController::class, 'test' ) );
+
+		// PostHog event tracking (available for both portal and admin - requires user to be logged in).
+		// Note: Permission check is done in controller to handle both PortalPolicy and AdminPolicy scenarios.
+		$router->post( 'track-event', array( VideoUploadController::class, 'track_event' ) );
 	}
 );
 
@@ -74,6 +81,8 @@ $router->withPolicy( 'PortalPolicy' )->group(
 
 		// Video status check (Portal endpoint - requires user to be logged in).
 		$router->get( 'video-status/:video_id', array( VideoUploadController::class, 'check_status' ) );
+
+		// Note: PostHog event tracking endpoint is now in the main group above to support both portal and admin apps.
 	}
 );
 

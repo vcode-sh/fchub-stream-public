@@ -92,14 +92,65 @@ class VideoPlayerRenderer {
 								}
 							}
 
-							// Check if video is ready to stream.
+							// Check if video is ready to stream AND has playback URLs.
+							// Cloudflare may set readyToStream=true before playback URLs are accessible.
 							$ready_to_stream = $video_info['readyToStream'] ?? false;
-							if ( $ready_to_stream ) {
+							$has_playback    = isset( $video_info['playback']['hls'] ) && ! empty( $video_info['playback']['hls'] );
+
+							if ( $ready_to_stream && $has_playback ) {
 								// Video is ready - render iframe.
 								$status = 'ready';
 							} else {
 								// Video is not ready - show encoding overlay.
 								$status = 'pending';
+
+								// Track warning in Sentry if readyToStream=true but no playback URLs.
+								if ( $ready_to_stream && ! $has_playback ) {
+									try {
+										if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+											SentryService::capture_message(
+												'Cloudflare Stream video readyToStream=true but no playback URLs. Video ID: ' . $video_id,
+												'warning',
+												array(
+													'context' => array(
+														'component' => 'player_renderer',
+														'provider' => 'cloudflare',
+														'video_id' => $video_id,
+														'ready_to_stream' => $ready_to_stream,
+														'has_playback_hls' => $has_playback,
+													),
+												)
+											);
+										}
+									} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+										// Silently continue.
+									}
+								}
+							}
+						} elseif ( is_wp_error( $video_info ) ) {
+							// API error - track in Sentry.
+							try {
+								if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+									$error_code  = $video_info->get_error_code();
+									$error_data  = $video_info->get_error_data();
+									$status_code = $error_data['status'] ?? 0;
+
+									SentryService::capture_message(
+										'Cloudflare Stream API error when checking video status. Video ID: ' . $video_id . ', Error: ' . $video_info->get_error_message() . ' (HTTP ' . $status_code . ')',
+										'error',
+										array(
+											'context' => array(
+												'component' => 'player_renderer',
+												'provider' => 'cloudflare',
+												'video_id' => $video_id,
+												'error_code' => $error_code,
+												'http_status' => $status_code,
+											),
+										)
+									);
+								}
+							} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+								// Silently continue.
 							}
 						}
 					} catch ( \Exception $e ) {
@@ -144,6 +195,65 @@ class VideoPlayerRenderer {
 						if ( preg_match( '/https?:\/\/(customer-[a-z0-9]+)\.cloudflarestream\.com/', $video_info['playback']['hls'], $matches ) ) {
 							$customer_subdomain = $matches[1];
 						}
+
+						// Double-check: video must have playback URLs even if status is 'ready'.
+						// Cloudflare may set readyToStream=true before playback URLs are accessible.
+						$ready_to_stream = $video_info['readyToStream'] ?? false;
+						$has_playback    = isset( $video_info['playback']['hls'] ) && ! empty( $video_info['playback']['hls'] );
+
+						if ( ! ( $ready_to_stream && $has_playback ) ) {
+							// Video not actually ready - don't render iframe.
+							$status = 'pending';
+
+							// Track warning in Sentry.
+							try {
+								if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+									SentryService::capture_message(
+										'Cloudflare Stream video marked as ready but missing playback URLs. Video ID: ' . $video_id,
+										'warning',
+										array(
+											'context' => array(
+												'component' => 'player_renderer',
+												'provider' => 'cloudflare',
+												'video_id' => $video_id,
+												'ready_to_stream' => $ready_to_stream,
+												'has_playback_hls' => $has_playback,
+											),
+										)
+									);
+								}
+							} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+								// Silently continue.
+							}
+						}
+					} elseif ( is_wp_error( $video_info ) ) {
+						// API error - track in Sentry and don't render iframe.
+						try {
+							if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+								$error_code  = $video_info->get_error_code();
+								$error_data  = $video_info->get_error_data();
+								$status_code = $error_data['status'] ?? 0;
+
+								SentryService::capture_message(
+									'Cloudflare Stream API error when fetching video info. Video ID: ' . $video_id . ', Error: ' . $video_info->get_error_message() . ' (HTTP ' . $status_code . ')',
+									'error',
+									array(
+										'context' => array(
+											'component'   => 'player_renderer',
+											'provider'    => 'cloudflare',
+											'video_id'    => $video_id,
+											'error_code'  => $error_code,
+											'http_status' => $status_code,
+										),
+									)
+								);
+							}
+						} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+							// Silently continue.
+						}
+
+						// Don't render iframe if API call failed.
+						$status = 'pending';
 					}
 				} catch ( \Exception $e ) {
 					// Silently fail - will try to render iframe anyway.

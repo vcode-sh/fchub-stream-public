@@ -214,7 +214,7 @@ class ConfigDefaults {
 		return array(
 			'enabled'            => false,
 			'dsn'                => '',
-			'traces_sample_rate' => 1.0, // 100% sampling for beta (can reduce later).
+			'traces_sample_rate' => 0.7, // 70% sampling for beta testing (good visibility).
 		);
 	}
 }

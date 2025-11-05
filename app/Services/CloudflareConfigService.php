@@ -113,7 +113,7 @@ class CloudflareConfigService extends ProviderConfigService {
 			),
 			'customer_subdomain' => array(
 				'label'          => __( 'Customer Subdomain', 'fchub-stream' ),
-				'allow_existing' => false,
+				'allow_existing' => true,
 			),
 		);
 	}

@@ -15,6 +15,8 @@ namespace FCHubStream\App\Services;
 use FCHubStream\App\Models\StreamConfig;
 use Sentry\State\Scope;
 use Sentry\Tracing\SpanContext;
+use Sentry\Tracing\TransactionContext;
+use Sentry\Tracing\SpanStatus;
 use Sentry\SentrySdk;
 use Sentry\Severity;
 use function Sentry\init;
@@ -182,6 +184,16 @@ class SentryService {
 
 		$sentry_config['active_provider'] = $active_provider;
 
+		// Get traces_sample_rate from hardcoded config first (developer-only configuration).
+		// If not set in config/app.php, use environment-based default.
+		if ( isset( $app_config['sentry_traces_sample_rate'] ) ) {
+			$hardcoded_rate = $app_config['sentry_traces_sample_rate'];
+			// Allow null to use environment-based default.
+			if ( null !== $hardcoded_rate ) {
+				$sentry_config['traces_sample_rate'] = (float) $hardcoded_rate;
+			}
+		}
+
 		return $sentry_config;
 	}
 
@@ -211,7 +223,7 @@ class SentryService {
 	 *
 	 * Returns environment-appropriate sampling rate:
 	 * - development: 1.0 (100% - capture everything)
-	 * - staging: 0.5 (50% - good balance)
+	 * - staging/beta: 0.7 (70% - good visibility for beta testing)
 	 * - production: 0.1 (10% - cost-effective)
 	 *
 	 * @since 1.0.0
@@ -228,7 +240,7 @@ class SentryService {
 
 			case 'staging':
 			case 'beta':
-				return 0.5; // 50% for staging.
+				return 0.7; // 70% for beta testing (good visibility).
 
 			case 'production':
 			default:
@@ -712,12 +724,13 @@ class SentryService {
 		}
 
 		try {
-			$context = new SpanContext();
+			// Use TransactionContext (not SpanContext) for startTransaction().
+			$context = new TransactionContext();
 			$context->setOp( $op );
 			$context->setData( $data );
+			$context->setName( $name );
 
 			$transaction = startTransaction( $context );
-			$transaction->setName( $name );
 
 			return $transaction;
 		} catch ( \Exception $e ) {

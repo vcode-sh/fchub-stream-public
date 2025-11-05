@@ -13,6 +13,8 @@
 
 namespace FCHubStream\App\Hooks\Handlers;
 
+use FCHubStream\App\Services\PostHogService;
+
 /**
  * Class DeactivationHandler
  *
@@ -43,6 +45,19 @@ class DeactivationHandler {
 	 * @return void
 	 */
 	public static function handle( $network_wide = false ) {
+		// Track deactivation event.
+		// Initialize PostHog if not already done (deactivation hook runs early).
+		if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) ) {
+			// Try to initialize PostHog (will only work if API key is configured).
+			PostHogService::init();
+
+			if ( PostHogService::is_initialized() ) {
+				PostHogService::track_plugin_deactivation( $network_wide );
+				// Flush to ensure event is sent immediately.
+				PostHogService::flush();
+			}
+		}
+
 		if ( $network_wide ) {
 			global $wpdb;
 			$old_blog = $wpdb->blogid;

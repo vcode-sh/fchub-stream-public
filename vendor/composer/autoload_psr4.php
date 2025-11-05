@@ -12,6 +12,7 @@ return array(
     'Psr\\Log\\' => array($vendorDir . '/psr/log/src'),
     'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-factory/src', $vendorDir . '/psr/http-message/src'),
     'Psr\\Http\\Client\\' => array($vendorDir . '/psr/http-client/src'),
+    'PostHog\\' => array($vendorDir . '/posthog/posthog-php/lib'),
     'ParagonIE\\Sodium\\' => array($vendorDir . '/paragonie/sodium_compat/namespaced'),
     'Jean85\\' => array($vendorDir . '/jean85/pretty-package-versions/src'),
     'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),

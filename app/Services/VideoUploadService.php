@@ -51,48 +51,79 @@ class VideoUploadService {
 	 * }
 	 */
 	public static function upload( $file_path, $filename, $metadata = array() ) {
-		$filesize   = file_exists( $file_path ) ? filesize( $file_path ) : 0;
-		$extension  = pathinfo( $filename, PATHINFO_EXTENSION );
-		$size_range = SentryService::get_file_size_range( $filesize );
+		$filesize  = file_exists( $file_path ) ? filesize( $file_path ) : 0;
+		$extension = pathinfo( $filename, PATHINFO_EXTENSION );
 
-		// Set custom tags for better filtering in Sentry.
-		SentryService::set_tags(
-			array(
-				'file_format'     => strtolower( $extension ),
-				'file_size_range' => $size_range,
-				'upload_source'   => $metadata['source'] ?? 'post',
-			)
-		);
+		// Fallback: if extension is empty, try to get it from file_path.
+		if ( empty( $extension ) ) {
+			$extension = pathinfo( $file_path, PATHINFO_EXTENSION );
+		}
 
-		// Start Sentry transaction for tracing.
-		$transaction = SentryService::start_transaction(
-			'video.upload',
-			'video.upload',
-			array(
-				'filename'   => $filename,
-				'filesize'   => $filesize,
-				'format'     => $extension,
-				'size_range' => $size_range,
-			)
-		);
+		// Normalize extension to lowercase and ensure it's not empty.
+		$extension = ! empty( $extension ) ? strtolower( $extension ) : 'unknown';
 
-		SentryService::add_breadcrumb(
-			'Video upload started',
-			'user',
-			'info',
-			array(
-				'filename'   => $filename,
-				'filesize'   => $filesize,
-				'format'     => $extension,
-				'size_range' => $size_range,
-			)
-		);
+		// Store upload start time for total time calculation (Unix timestamp).
+		$upload_start_time_unix = time();
+
+		// Safely initialize Sentry tracking (don't break upload if Sentry fails).
+		$size_range  = 'unknown';
+		$transaction = null;
+		try {
+			if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+				$size_range = SentryService::get_file_size_range( $filesize );
+
+				// Set custom tags for better filtering in Sentry.
+				SentryService::set_tags(
+					array(
+						'file_format'     => $extension, // Already normalized to lowercase.
+						'file_size_range' => $size_range,
+						'upload_source'   => $metadata['source'] ?? 'post',
+					)
+				);
+
+				// Start Sentry transaction for tracing.
+				$transaction = SentryService::start_transaction(
+					'video.upload',
+					'video.upload',
+					array(
+						'filename'   => $filename,
+						'filesize'   => $filesize,
+						'format'     => $extension,
+						'size_range' => $size_range,
+					)
+				);
+
+				SentryService::add_breadcrumb(
+					'Video upload started',
+					'user',
+					'info',
+					array(
+						'filename'   => $filename,
+						'filesize'   => $filesize,
+						'format'     => $extension,
+						'size_range' => $size_range,
+					)
+				);
+			}
+		} catch ( \Exception $e ) {
+			// Silently continue - don't break upload if Sentry fails.
+			error_log( '[FCHub Stream] Failed to initialize Sentry for upload: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 
 		try {
-			// Validate file.
-			$validation_span = SentryService::start_span( $transaction, 'validation', 'Validate video file' );
+			// Start timer for upload performance tracking.
+			$upload_start_time = microtime( true );
 
-			SentryService::add_breadcrumb( 'Validating video file', 'video.upload', 'info' );
+			// Validate file.
+			$validation_span = null;
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) && $transaction ) {
+					$validation_span = SentryService::start_span( $transaction, 'validation', 'Validate video file' );
+					SentryService::add_breadcrumb( 'Validating video file', 'video.upload', 'info' );
+				}
+			} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+				// Silently continue.
+			}
 
 			$validation = self::validate_file( $file_path, $filename );
 
@@ -103,62 +134,118 @@ class VideoUploadService {
 			if ( is_wp_error( $validation ) ) {
 				$error_code = $validation->get_error_code();
 
-				SentryService::add_breadcrumb(
-					'Validation failed: ' . $validation->get_error_message(),
-					'console',
-					'error',
-					array( 'error_code' => $error_code )
-				);
+				// Safely track validation failure in Sentry/PostHog.
+				try {
+					if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+						SentryService::add_breadcrumb(
+							'Validation failed: ' . $validation->get_error_message(),
+							'console',
+							'error',
+							array( 'error_code' => $error_code )
+						);
 
-				// Set fingerprint to group similar validation errors together.
-				SentryService::set_fingerprint(
-					array(
-						'{{ default }}',
-						'validation-error',
-						$error_code,
-					)
-				);
+						// Set fingerprint to group similar validation errors together.
+						SentryService::set_fingerprint(
+							array(
+								'{{ default }}',
+								'validation-error',
+								$error_code,
+							)
+						);
 
-				// Capture validation errors to Sentry for analysis.
-				SentryService::capture_message(
-					'Video upload validation failed: ' . $validation->get_error_message(),
-					'warning'
-				);
+						// Capture validation errors to Sentry for analysis.
+						SentryService::capture_message(
+							'Video upload validation failed: ' . $validation->get_error_message(),
+							'warning'
+						);
+					}
+
+					// Track validation failure in PostHog.
+					if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+						$file_size_mb     = round( $filesize / 1024 / 1024, 2 );
+						$defaults         = get_option( 'fchub_stream_upload_settings', array() );
+						$max_file_size_mb = $defaults['max_file_size'] ?? $defaults['max_file_size_mb'] ?? 500;
+
+						// Ensure format is not empty (use 'unknown' if empty).
+						$format_value = ! empty( $extension ) ? $extension : 'unknown';
+
+						PostHogService::track_video_validation_failed(
+							$error_code,
+							$validation->get_error_message(),
+							array(
+								'file_size_mb' => $file_size_mb,
+								'format'       => $format_value,
+								'max_size_mb'  => $max_file_size_mb,
+							)
+						);
+					}
+				} catch ( \Exception $e ) {
+					// Silently continue - don't break upload if tracking fails.
+					error_log( '[FCHub Stream] Failed to track validation failure: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
 
 				if ( $transaction ) {
-					$transaction->setStatus( 'invalid_argument' );
-					$transaction->finish();
+					try {
+						$transaction->setStatus( \Sentry\Tracing\SpanStatus::invalidArgument() );
+						$transaction->finish();
+					} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+						// Silently continue.
+					}
 				}
 
 				return $validation;
 			}
 
-			SentryService::add_breadcrumb( 'Validation passed', 'console', 'info' );
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb( 'Validation passed', 'console', 'info' );
+				}
+			} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+				// Silently continue.
+			}
 
 			// Get provider configuration.
 			$config   = StreamConfigService::get_private();
 			$provider = $config['provider'] ?? 'cloudflare';
 
-			SentryService::add_breadcrumb(
-				'Provider selected: ' . $provider,
-				'console',
-				'info',
-				array( 'provider' => $provider )
-			);
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Provider selected: ' . $provider,
+						'console',
+						'info',
+						array( 'provider' => $provider )
+					);
+				}
+			} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+				// Silently continue.
+			}
 
 			// Upload to provider.
-			$upload_span = SentryService::start_span(
-				$transaction,
-				'http.client',
-				'Upload to ' . $provider,
-				array( 'provider' => $provider )
-			);
+			$upload_span = null;
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) && $transaction ) {
+					$upload_span = SentryService::start_span(
+						$transaction,
+						'http.client',
+						'Upload to ' . $provider,
+						array( 'provider' => $provider )
+					);
+				}
+			} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+				// Silently continue.
+			}
+
+			$upload_api_start_time = microtime( true );
 
 			if ( 'bunny' === $provider ) {
 				$result = self::upload_to_bunny( $file_path, $filename, $metadata, $config );
 			} else {
 				$result = self::upload_to_cloudflare( $file_path, $filename, $metadata, $config );
 			}
+
+			$upload_api_end_time = microtime( true );
+			$upload_api_time     = $upload_api_end_time - $upload_api_start_time;
 
 			if ( $upload_span ) {
 				$upload_span->finish();
@@ -168,72 +255,177 @@ class VideoUploadService {
 			if ( is_wp_error( $result ) ) {
 				$error_code = $result->get_error_code();
 
-				SentryService::add_breadcrumb(
-					'Upload failed: ' . $result->get_error_message(),
-					'http',
-					'error',
-					array(
-						'provider'   => $provider,
-						'error_code' => $error_code,
-					)
-				);
+				// Safely track upload failure in Sentry/PostHog.
+				try {
+					if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+						SentryService::add_breadcrumb(
+							'Upload failed: ' . $result->get_error_message(),
+							'http',
+							'error',
+							array(
+								'provider'   => $provider,
+								'error_code' => $error_code,
+							)
+						);
 
-				// Set fingerprint to group similar upload errors.
-				SentryService::set_fingerprint(
-					array(
-						'{{ default }}',
-						'upload-error',
-						$provider,
-						$error_code,
-					)
-				);
+						// Set fingerprint to group similar upload errors.
+						SentryService::set_fingerprint(
+							array(
+								'{{ default }}',
+								'upload-error',
+								$provider,
+								$error_code,
+							)
+						);
 
-				SentryService::capture_message(
-					sprintf(
-						'Video upload failed to %s: %s',
-						$provider,
-						$result->get_error_message()
-					),
-					'error'
-				);
+						SentryService::capture_message(
+							sprintf(
+								'Video upload failed to %s: %s',
+								$provider,
+								$result->get_error_message()
+							),
+							'error'
+						);
+					}
+
+					// Track upload failure in PostHog.
+					if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+						$file_size_mb      = round( $filesize / 1024 / 1024, 2 );
+						$upload_end_time   = microtime( true );
+						$total_upload_time = $upload_end_time - $upload_start_time;
+
+						// Ensure format is not empty (use 'unknown' if empty).
+						$format_value = ! empty( $extension ) ? $extension : 'unknown';
+
+						// Ensure provider is not empty (should be 'cloudflare' or 'bunny').
+						$provider_value = ! empty( $provider ) ? $provider : 'unknown';
+
+						PostHogService::track_video_upload_failed(
+							$error_code,
+							$result->get_error_message(),
+							$provider_value,
+							array(
+								'file_size_mb'        => $file_size_mb,
+								'format'              => $format_value,
+								'upload_time_seconds' => round( $total_upload_time, 2 ),
+								'upload_time_ms'      => round( $total_upload_time * 1000, 2 ),
+							)
+						);
+					}
+				} catch ( \Exception $e ) {
+					// Silently continue - don't break upload if tracking fails.
+					error_log( '[FCHub Stream] Failed to track upload failure: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
 
 				if ( $transaction ) {
-					$transaction->setStatus( 'internal_error' );
-					$transaction->finish();
+					try {
+						$transaction->setStatus( \Sentry\Tracing\SpanStatus::internalError() );
+						$transaction->finish();
+					} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+						// Silently continue.
+					}
 				}
 
 				return $result;
 			}
 
-			SentryService::add_breadcrumb(
-				'Upload successful',
-				'http',
-				'info',
-				array(
-					'video_id' => $result['video_id'] ?? 'unknown',
-					'provider' => $provider,
-				)
-			);
+			// Safely track successful upload.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Upload successful',
+						'http',
+						'info',
+						array(
+							'video_id' => $result['video_id'] ?? 'unknown',
+							'provider' => $provider,
+						)
+					);
+				}
 
-			if ( $transaction ) {
-				$transaction->setStatus( 'ok' );
-				$transaction->finish();
+				// Track successful upload in PostHog.
+				if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
+					$file_size_mb      = round( $filesize / 1024 / 1024, 2 );
+					$upload_end_time   = microtime( true );
+					$total_upload_time = $upload_end_time - $upload_start_time;
+
+					// Ensure format is not empty (use 'unknown' if empty).
+					$format_value = ! empty( $extension ) ? $extension : 'unknown';
+
+					// Ensure provider is not empty (should be 'cloudflare' or 'bunny').
+					$provider_value = ! empty( $provider ) ? $provider : 'unknown';
+
+					PostHogService::track_video_upload(
+						array(
+							'provider'         => $provider_value,
+							'file_size_mb'     => $file_size_mb,
+							'duration_seconds' => $metadata['duration'] ?? 0,
+							'format'           => $format_value,
+							'source'           => $metadata['source'] ?? 'post',
+						)
+					);
+
+					// Track upload time performance.
+					PostHogService::track_upload_time(
+						$total_upload_time,
+						$provider_value,
+						array(
+							'file_size_mb'      => $file_size_mb,
+							'format'            => $format_value,
+							'video_id'          => $result['video_id'] ?? 'unknown',
+							'upload_start_time' => $upload_start_time_unix, // Pass Unix timestamp for consistency.
+						)
+					);
+
+					// Store upload timestamp for encoding time calculation (expires in 14 days).
+					// Also store upload_start_time in transient for total time calculation.
+					$video_id = $result['video_id'] ?? '';
+					if ( ! empty( $video_id ) ) {
+						set_transient( 'fchub_stream_upload_time_' . $video_id, $upload_start_time_unix, 14 * DAY_IN_SECONDS );
+						// Also store upload_time_seconds for total time calculation.
+						set_transient( 'fchub_stream_upload_duration_' . $video_id, $total_upload_time, 14 * DAY_IN_SECONDS );
+					}
+				}
+
+				if ( $transaction ) {
+					try {
+						$transaction->setStatus( \Sentry\Tracing\SpanStatus::ok() );
+						$transaction->finish();
+					} catch ( \Exception $e ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+						// Silently continue.
+					}
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue - don't break upload if tracking fails.
+				error_log( '[FCHub Stream] Failed to track successful upload: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 
 			return $result;
 		} catch ( \Exception $e ) {
-			SentryService::add_breadcrumb(
-				'Exception: ' . $e->getMessage(),
-				'video.upload',
-				'error'
-			);
+			// Safely capture exceptions to Sentry.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::add_breadcrumb(
+						'Exception: ' . $e->getMessage(),
+						'video.upload',
+						'error'
+					);
 
-			// Capture exceptions to Sentry.
-			SentryService::capture_exception( $e );
+					// Capture exceptions to Sentry.
+					SentryService::capture_exception( $e );
+				}
 
-			if ( $transaction ) {
-				$transaction->setStatus( 'internal_error' );
-				$transaction->finish();
+				if ( $transaction ) {
+					try {
+						$transaction->setStatus( \Sentry\Tracing\SpanStatus::internalError() );
+						$transaction->finish();
+					} catch ( \Exception $e2 ) {  // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+						// Silently continue.
+					}
+				}
+			} catch ( \Exception $e2 ) {
+				// Silently continue - don't break exception handling if Sentry fails.
+				error_log( '[FCHub Stream] Failed to capture exception to Sentry: ' . $e2->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 
 			return new WP_Error(
