@@ -1,0 +1,97 @@
+# FCHub Stream - Distribution Ignore File
+# Files and directories to exclude from public release
+
+# Version Control
+.git
+.gitignore
+.gitattributes
+
+# Development Documentation
+CLAUDE.md
+VOICE-TONE.md
+RELEASE.md
+RELEASE-CHECKLIST.md
+README-PUBLIC.md
+build-release.sh
+knowledgebase/
+todo/
+beta-test/
+
+# Vue.js Source Files (keep only dist/)
+admin-app/src/
+admin-app/node_modules/
+admin-app/package.json
+admin-app/package-lock.json
+admin-app/vite.config.js
+admin-app/eslint.config.js
+admin-app/postcss.config.js
+admin-app/tailwind.config.js
+admin-app/.prettierrc
+admin-app/.prettierignore
+admin-app/index.html
+admin-app/README.md
+admin-app/.gitignore
+
+portal-app/src/
+portal-app/node_modules/
+portal-app/package.json
+portal-app/package-lock.json
+portal-app/vite.config.js
+portal-app/README.md
+portal-app/.gitignore
+
+# Tests
+tests/
+test-scripts/
+test-sentry.php
+test-sentry-api.sh
+test-sentry-init.php
+phpunit.xml
+.phpunit.cache/
+.phpunit.result.cache
+coverage/
+
+# Code Quality Tools
+phpcs.xml
+.php_cs
+.php_cs.cache
+
+# IDE & Editor
+.vscode/
+.idea/
+.claude/
+*.sublime-project
+*.sublime-workspace
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Development Dependencies (keep vendor/ for production dependencies)
+composer.lock
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary Files
+*.tmp
+*.bak
+*.bak2
+*.bak3
+*.swp
+*~
+.cache/
+*.code-workspace
+
+# Environment Files
+.env
+.env.local
+.env.*.local
+
+# Build artifacts that shouldn't be in source
+node_modules/

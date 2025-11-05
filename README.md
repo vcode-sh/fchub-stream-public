@@ -1,166 +1,128 @@
 # FCHub Stream
 
-Direct video upload plugin for FluentCommunity. Enables users to upload videos directly to your community feed instead of only sharing YouTube links. Powered by Cloudflare Stream and Bunny.net Stream.
+Video streaming for FluentCommunity. Built because WordPress media library and video don't mix.
 
-## Features
+Direct uploads to Cloudflare Stream or Bunny.net. No media library gymnastics. No manual video conversion. Pick your provider. Upload videos. Done.
 
-- **Direct Video Uploads** - Users can upload videos directly from their devices
-- **Multiple Providers** - Choose between Cloudflare Stream or Bunny.net Stream
-- **Real-time Progress** - Visual upload progress with speed and time estimates
-- **Drag & Drop** - Intuitive drag-and-drop interface
-- **Video Management** - Automatic cleanup when posts/comments are deleted
-- **Flexible Configuration** - Control file size limits, formats, and encoding settings
+## What It Does
+
+- **Direct Uploads** - Videos go straight to streaming provider. Zero WordPress media library involvement.
+- **Two Providers** - Cloudflare Stream or Bunny.net. Pick one. Both work.
+- **Drag & Drop** - Upload interface that doesn't make you cry.
+- **Auto Cleanup** - Delete post? Video gets deleted too. Revolutionary? No. Functional? Yes.
 
 ## Requirements
 
-- **WordPress**: 6.7 or higher
-- **PHP**: 8.3 or higher
-- **FluentCommunity**: Must be installed and active
-- **Video Provider**: Active account with Cloudflare Stream or Bunny.net Stream
+- WordPress 6.7+
+- PHP 8.3+
+- FluentCommunity (must be active)
+- Cloudflare Stream OR Bunny.net account
 
 ## Installation
 
-### Step 1: Install the Plugin
+**Download:**
+- [Latest version](https://github.com/YOUR-USERNAME/fchub-stream-public/releases/latest/download/fchub-stream.zip) (always newest)
+- [Specific version](https://github.com/YOUR-USERNAME/fchub-stream-public/releases) (if you're picky)
 
-1. Download the latest release ZIP file from the [Releases page](https://github.com/YOUR-USERNAME/fchub-stream-public/releases)
-2. Go to WordPress Admin → Plugins → Add New → Upload Plugin
-3. Upload the ZIP file and click "Install Now"
-4. Click "Activate Plugin"
+**Install:**
+1. WordPress Admin → Plugins → Add New → Upload Plugin
+2. Upload ZIP → Install Now → Activate
+3. Done. No composer. No npm. Just works.
 
-### Step 2: Install Dependencies
+**Updating:**
+Upload new ZIP. WordPress updates the plugin automatically. Won't create duplicates. Promise.
 
-The plugin requires PHP dependencies installed via Composer:
+## Setup
 
-```bash
-cd wp-content/plugins/fchub-stream
-composer install --no-dev
-```
+### Cloudflare Stream
 
-If you don't have Composer installed, [follow these instructions](https://getcomposer.org/doc/00-intro.md).
-
-### Step 3: Configure Video Provider
-
-#### Option A: Cloudflare Stream
-
-1. Create a [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) account
-2. Get your credentials from Cloudflare dashboard:
+1. Get [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) account
+2. Grab from dashboard:
    - Account ID
-   - API Token (with Stream permissions)
-   - Customer Subdomain (optional, for custom branding)
-3. Go to WordPress Admin → FluentCommunity → FCHub Stream
-4. Navigate to "Cloudflare Stream" tab
-5. Enter your credentials and save
+   - API Token (needs Stream permissions)
+   - Customer Subdomain (required)
+3. WordPress Admin → FluentCommunity → FCHub Stream → Cloudflare Stream tab
+4. Paste credentials. Save. Works.
 
-#### Option B: Bunny.net Stream
+### Bunny.net Stream
 
-1. Create a [Bunny.net](https://bunny.net/stream/) account
-2. Create a Video Library in Bunny dashboard
-3. Get your credentials:
+1. Get [Bunny.net](https://bunny.net/stream/) account
+2. Create Video Library
+3. Grab from dashboard:
    - Library ID
    - API Key
-4. Go to WordPress Admin → FluentCommunity → FCHub Stream
-5. Navigate to "Bunny.net Stream" tab
-6. Enter your credentials and save
+4. WordPress Admin → FluentCommunity → FCHub Stream → Bunny.net Stream tab
+5. Paste credentials. Save. Works.
 
-### Step 4: Configure Settings
+### Configure Limits
 
-Go to WordPress Admin → FluentCommunity → FCHub Stream:
+WordPress Admin → FluentCommunity → FCHub Stream:
 
-**Stream Settings:**
-- Choose your active provider (Cloudflare or Bunny.net)
-- Configure auto-publish settings
-- Set status polling interval
+- **Stream Settings**: Pick provider (Cloudflare or Bunny)
+- **Upload Settings**: File size limits, allowed formats, max duration
 
-**Upload Settings:**
-- Set maximum file size (1-10000 MB)
-- Configure allowed video formats
-- Set maximum video duration
+Set limits that make sense for your community. Default: 1GB max, MP4/MOV/AVI allowed.
 
 ## Usage
 
-### For Community Members
+### For Members
 
-1. Go to your FluentCommunity portal
-2. Create a new post or comment
-3. Click the video upload button (camera icon)
-4. Drag & drop a video or click to browse
-5. Wait for upload to complete
-6. Your video will appear in the post preview
+1. FluentCommunity portal → Create post
+2. Click video upload button
+3. Drag & drop video
+4. Wait for upload
+5. Video appears in post
 
-### For Administrators
+### For Admins
 
-**Monitor Uploads:**
-- Check upload success rates
-- Review encoding status
-- Manage video storage
-
-**Configure Limits:**
-- Adjust file size limits based on your needs
-- Enable/disable specific video formats
-- Set encoding quality preferences
-
-## Optional: Error Monitoring with Sentry
-
-FCHub Stream includes optional Sentry integration for error monitoring and tracking.
-
-1. Create a [Sentry](https://sentry.io) account
-2. Create a new project
-3. Copy your DSN
-4. Go to WordPress Admin → FluentCommunity → FCHub Stream → Sentry
-5. Enable Sentry and paste your DSN
-6. Click "Test Connection" to verify
-
-Sentry will automatically capture:
-- Upload errors
-- API failures
-- Encoding issues
-- Integration problems
+Check upload stats. Adjust limits if needed. That's it.
 
 ## Troubleshooting
 
-### Videos won't upload
+**Videos won't upload:**
+- Check FluentCommunity is active
+- Verify provider credentials
+- Check file size limits
+- Check browser console for errors
 
-1. Check that FluentCommunity is active
-2. Verify provider credentials in admin settings
-3. Check upload file size limits
-4. Ensure your hosting supports large file uploads
-5. Check browser console for JavaScript errors
+**Videos stuck processing:**
+- Check provider dashboard
+- Large videos take time
+- Provider does encoding. We wait.
 
-### Videos stuck in "processing"
+**No upload button:**
+- FluentCommunity active?
+- Logged in to portal?
+- Clear browser cache
 
-1. Check your video provider dashboard for encoding status
-2. Verify webhook configuration (if using webhooks)
-3. Large videos may take longer to encode
+## Documentation
 
-### Can't see video upload button
+Full docs: **https://docs.fchub.co/docs/fchub-stream**
 
-1. Ensure FluentCommunity is active
-2. Clear browser cache
-3. Check that you're logged in to the portal
-4. Verify portal integration is enabled
+API guides, troubleshooting, video limits explained.
 
 ## Support
 
-For issues, questions, or feature requests:
-
-- **GitHub Issues**: [Report a bug or request a feature](https://github.com/YOUR-USERNAME/fchub-stream-public/issues)
-- **Documentation**: Check the [wiki](https://github.com/YOUR-USERNAME/fchub-stream-public/wiki)
+- **Issues/Features**: [GitHub Issues](https://github.com/YOUR-USERNAME/fchub-stream-public/issues)
+- **Questions**: Check [docs](https://docs.fchub.co/docs/fchub-stream) first
 
 ## Credits
 
-Developed by [Vibe Code](https://x.com/vcode_sh)
+Built by [Vibe Code](https://x.com/vcode_sh) because WordPress media library + video = suffering.
 
 ## License
 
-GPL-2.0-or-later - see [LICENSE](LICENSE) file for details.
+GPL-2.0-or-later
 
 ## Changelog
 
 ### 0.0.1 (Beta)
-- Initial beta release
+- Initial release
 - Cloudflare Stream integration
 - Bunny.net Stream integration
-- Portal video upload interface
-- Admin configuration panel
-- Sentry error monitoring
-- Automatic video cleanup on post/comment deletion
+- Direct uploads
+- Auto video cleanup
+- Admin config panel
+- Portal upload interface
+
+Built out of media library trauma. Streams out of necessity.
