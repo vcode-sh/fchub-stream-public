@@ -1,3 +1,5 @@
+![FCHub Stream Cover](https://files.vcode.sh/fchub/plugins/stream/fchub-stream-cover.webp)
+
 # FCHub Stream
 
 Video streaming for FluentCommunity. Built because WordPress media library and video don't mix.
