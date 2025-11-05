@@ -11,6 +11,16 @@ Direct uploads to Cloudflare Stream or Bunny.net. No media library gymnastics. N
 - **Drag & Drop** - Upload interface that doesn't make you cry.
 - **Auto Cleanup** - Delete post? Video gets deleted too. Revolutionary? No. Functional? Yes.
 
+## Part of FCHub Ecosystem
+
+FCHub Stream is an **independent plugin** built for FluentCommunity. Part of the **[FCHub.co](https://fchub.co)** ecosystem:
+
+- **FCHub Stream** (this plugin) - Video streaming. Available now.
+- **FCHub Chat** - Real-time chat for FluentCommunity. Coming soon.
+- **FCHub Mobile** - Unofficial mobile app for FluentCommunity. Coming soon.
+
+All plugins are independent. Install what you need. Ignore the rest.
+
 ## Requirements
 
 - WordPress 6.7+
@@ -21,8 +31,8 @@ Direct uploads to Cloudflare Stream or Bunny.net. No media library gymnastics. N
 ## Installation
 
 **Download:**
-- [Latest version](https://github.com/YOUR-USERNAME/fchub-stream-public/releases/latest/download/fchub-stream.zip) (always newest)
-- [Specific version](https://github.com/YOUR-USERNAME/fchub-stream-public/releases) (if you're picky)
+- [Latest version](https://github.com/vcode-sh/fchub-stream-public/releases/latest/download/fchub-stream.zip) (always newest)
+- [Specific version](https://github.com/vcode-sh/fchub-stream-public/releases) (if you're picky)
 
 **Install:**
 1. WordPress Admin → Plugins → Add New → Upload Plugin
@@ -103,16 +113,25 @@ API guides, troubleshooting, video limits explained.
 
 ## Support
 
-- **Issues/Features**: [GitHub Issues](https://github.com/YOUR-USERNAME/fchub-stream-public/issues)
+- **Issues/Features**: [GitHub Issues](https://github.com/vcode-sh/fchub-stream-public/issues)
 - **Questions**: Check [docs](https://docs.fchub.co/docs/fchub-stream) first
 
-## Credits
+## Credits & Donations
 
 Built by [Vibe Code](https://x.com/vcode_sh) because WordPress media library + video = suffering.
 
+**Like this plugin?** Support development:
+- ☕ [Buy me a coffee](https://buymeacoffee.com/vcode)
+- ⭐ Star the repo on [GitHub](https://github.com/vcode-sh/fchub-stream-public)
+- 🐦 Follow [@vcode_sh](https://x.com/vcode_sh) for updates
+
+Independent development. Zero corporate funding. Your support matters.
+
 ## License
 
-GPL-2.0-or-later
+MIT License - see [LICENSE](LICENSE) file
+
+Use it. Modify it. Share it. Credit appreciated.
 
 ## Changelog
 
@@ -125,4 +144,8 @@ GPL-2.0-or-later
 - Admin config panel
 - Portal upload interface
 
+---
+
 Built out of media library trauma. Streams out of necessity.
+
+Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that work.

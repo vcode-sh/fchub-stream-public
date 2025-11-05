@@ -2,12 +2,12 @@
 /**
  * Plugin Name: FCHub Stream
  * Plugin URI: https://fchub.co
- * Description: Direct video upload plugin for FluentCommunity. Enables users to upload videos directly instead of only YouTube links. Supports Cloudflare Stream and Bunny.net Stream.
+ * Description: Video streaming for FluentCommunity. Direct uploads to Cloudflare Stream or Bunny.net. Built because WordPress media library and video don't mix.
  * Version: 0.0.1
  * Author: Vibe Code
  * Author URI: https://x.com/vcode_sh
- * License: GPL-2.0-or-later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
  * Text Domain: fchub-stream
  * Domain Path: /languages
  * Requires at least: 6.7
