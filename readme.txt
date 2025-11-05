@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.7
 Requires PHP: 8.3
-Stable tag: 0.0.3
+Stable tag: 0.0.4
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -70,6 +70,14 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.0.4 - 2025-11-05 =
+* Fixed feed reloads showing encoding overlay when video is already ready
+* Fixed 500 error when switching providers in admin settings
+* Fixed Bunny.net videos not displaying after posting
+* Bunny.net Stream now enabled and ready for testing
+* Videos show player immediately on reload instead of encoding screen
+* Provider switching works without crashing admin panel
 
 = 0.0.3 - 2025-11-05 =
 * Fixed 401 Unauthorized errors during long video encoding (15+ minutes)
