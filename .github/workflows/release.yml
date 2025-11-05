@@ -31,14 +31,27 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='fchub-stream-*.zip' \
+            --exclude='fchub-stream.zip' \
             . /tmp/fchub-stream/
 
-          # Create ZIP
+          # Create versioned ZIP
           cd /tmp
           zip -r fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip fchub-stream/
 
+          # Verify ZIP structure (must contain fchub-stream/ folder)
+          if ! unzip -l fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip | grep -q "fchub-stream/fchub-stream.php"; then
+            echo "ERROR: ZIP structure incorrect - missing fchub-stream/ folder"
+            exit 1
+          fi
+
+          echo "✓ ZIP structure verified: fchub-stream/ folder present"
+
+          # Create latest ZIP (without version number)
+          cp fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip fchub-stream.zip
+
           # Move to workspace
           mv fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip $GITHUB_WORKSPACE/
+          mv fchub-stream.zip $GITHUB_WORKSPACE/
 
       - name: Generate changelog
         id: changelog
@@ -64,12 +77,21 @@ jobs:
 
             Direct video upload plugin for FluentCommunity.
 
+            ### 📥 Download
+
+            **Versioned**: `fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip`
+            **Latest** (always newest): `fchub-stream.zip`
+
+            Both files are identical - use whichever you prefer!
+
             ### Installation
 
-            1. Download `fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip`
+            1. Download ZIP file (either one)
             2. Upload to WordPress → Plugins → Add New → Upload Plugin
             3. Activate plugin
             4. Configure provider credentials in FluentCommunity → FCHub Stream
+
+            **Important**: When you upload a new version, WordPress will **update** the existing plugin automatically (won't create a duplicate).
 
             ### Requirements
 
@@ -85,7 +107,14 @@ jobs:
             ---
 
             **Full Documentation**: [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
-          files: fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip
+
+            **Always Latest Download Link**:
+            ```
+            https://github.com/${{ github.repository }}/releases/latest/download/fchub-stream.zip
+            ```
+          files: |
+            fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip
+            fchub-stream.zip
           draft: false
           prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') }}
         env:
