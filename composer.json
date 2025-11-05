@@ -1,20 +1,22 @@
 {
-    "name": "wpfluent/fchub-stream",
+    "name": "vcode-sh/fchub-stream",
     "type": "wordpress-plugin",
-    "description": "Real-time streaming plugin for FluentCommunity using fchub infrastructure.",
+    "description": "Video streaming for FluentCommunity. Direct uploads to Cloudflare Stream or Bunny.net. Built because WordPress media library and video don't mix.",
     "keywords": [
         "WordPress",
         "FluentCommunity",
         "Stream",
         "Streaming",
-        "WebSocket",
-        "fchub"
+        "Video",
+        "Cloudflare",
+        "Bunny.net"
     ],
-    "license": "GPL-2.0-or-later",
+    "license": "MIT",
     "authors": [
         {
-            "name": "FluentCommunity Team",
-            "email": "support@fluentcommunity.com"
+            "name": "Vibe Code",
+            "email": "tom@vcode.sh",
+            "homepage": "https://x.com/vcode_sh"
         }
     ],
     "autoload": {
