@@ -6,8 +6,8 @@
  * Version: 0.0.1
  * Author: Vibe Code
  * Author URI: https://x.com/vcode_sh
- * License: MIT
- * License URI: https://opensource.org/licenses/MIT
+ * License: Proprietary
+ * License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
  * Text Domain: fchub-stream
  * Domain Path: /languages
  * Requires at least: 6.7

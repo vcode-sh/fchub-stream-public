@@ -88,7 +88,18 @@ Built by [Vibe Code](https://x.com/vcode_sh). Independent dev. Zero corporate fu
 
 ## License
 
-MIT - Use it. Modify it. Credit appreciated.
+**Beta = Free. After Beta = Pay.**
+
+Right now? Free during beta testing. You're doing me a favor finding bugs.
+
+After beta? Commercial license. Price TBA. When I figure it out, you'll know.
+
+Beta testing means:
+- Test it. Break it. Report bugs.
+- No commercial use yet.
+- Beta ends when I say so.
+
+Using this during beta = you agreed to the above. Deal? Deal.
 
 ---
 
