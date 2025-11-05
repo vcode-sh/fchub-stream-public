@@ -203,10 +203,10 @@ class UploadSettingsController {
 		// Validate max_duration_seconds.
 		if ( isset( $data['max_duration_seconds'] ) ) {
 			$max_duration = (int) $data['max_duration_seconds'];
-			if ( $max_duration < 0 || $max_duration > 86400 ) { // Max 24 hours.
+			if ( $max_duration < 0 || $max_duration > 21600 ) { // Max 6 hours.
 				return new WP_Error(
 					'invalid_max_duration',
-					__( 'Maximum duration must be between 0 (unlimited) and 86400 seconds (24 hours).', 'fchub-stream' ),
+					__( 'Maximum duration must be between 0 (unlimited) and 21600 seconds (6 hours).', 'fchub-stream' ),
 					array( 'status' => 400 )
 				);
 			}

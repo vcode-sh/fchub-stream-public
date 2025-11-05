@@ -79,6 +79,9 @@ class StreamConfig {
 	 * Performs comprehensive sanitization of all configuration values
 	 * while preserving encrypted credentials.
 	 *
+	 * Note: update_option() returns false if value hasn't changed (not an error).
+	 * This method distinguishes between "no change" and actual save failures.
+	 *
 	 * @since 1.0.0
 	 *
 	 * @param array $config Configuration data to save.
@@ -89,7 +92,29 @@ class StreamConfig {
 		// Sanitize before saving.
 		$sanitized = ConfigTransformer::sanitize( $config );
 
-		return update_option( self::OPTION_NAME, $sanitized, false );
+		// Get current value before saving to detect actual changes.
+		$current = get_option( self::OPTION_NAME, array() );
+
+		// Save to database.
+		$result = update_option( self::OPTION_NAME, $sanitized, false );
+
+		// update_option() returns false if value hasn't changed.
+		// Check if value actually changed by comparing sanitized arrays.
+		if ( false === $result ) {
+			// Compare arrays to see if value actually changed.
+			// If arrays are equal, update_option() correctly returned false (no change).
+			// If arrays differ, this is a real error.
+			$current_sanitized = ConfigTransformer::sanitize( $current );
+			// Use serialize for deep comparison since arrays can have nested structures.
+			if ( serialize( $sanitized ) === serialize( $current_sanitized ) ) {
+				// Value hasn't changed - this is OK, not an error.
+				return true;
+			}
+			// Arrays differ but update_option returned false - this is an error.
+			return false;
+		}
+
+		return true;
 	}
 
 	/**

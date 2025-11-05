@@ -4,6 +4,41 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.0.2] - 2025-11-05
+
+### Fixed
+
+**Upload Settings Save Issue**
+- Fixed browser warning when saving upload settings after setting Maximum File Size
+- Fixed race condition where success message showed before API call completed
+- Fixed false negative error when saving comment video settings (when value hadn't changed)
+- Improved error handling: errors now display in UI instead of just browser alerts
+- Reduced Sentry noise: 400-level validation errors no longer trigger Sentry alerts
+
+**Duration Settings UI**
+- Fixed duration slider: changed step from 60 seconds to 15 seconds (allows setting durations like 30 seconds, 45 seconds, etc.)
+- Reduced maximum duration limit from 24 hours to 6 hours (21600 seconds) - more reasonable for most use cases
+- Added note that duration validation is not yet implemented (coming soon)
+
+**Backend Fixes**
+- Fixed `StreamConfig::save()` false negative: now correctly distinguishes between "no change" and actual save failures
+- Properly handles WordPress `update_option()` returning false when value hasn't changed
+- Updated duration validation: maximum changed from 86400 seconds (24h) to 21600 seconds (6h)
+
+**Frontend Improvements**
+- Upload settings now wait for actual API response before showing success/error
+- Error messages display inline in the UI instead of browser alerts
+- Better error propagation from parent to child components
+- Success/error states properly managed via props
+
+### Notes
+
+**Duration Validation Not Yet Implemented**
+- The "Maximum Video Duration" setting is saved and can be configured, but it is **not currently enforced** during video uploads
+- Videos longer than the configured limit will still be accepted
+- Duration validation will be implemented in a future release
+- This is indicated in the UI with a warning note
+
 ## [0.0.1] - 2025-11-05
 
 First release. Beta testing. Video streaming for FluentCommunity because WordPress media library and video don't mix.
@@ -71,4 +106,5 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.0.2]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.2
 [0.0.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.1

@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.7
 Requires PHP: 8.3
-Stable tag: 0.0.1
+Stable tag: 0.0.2
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -70,6 +70,15 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.0.2 - unreleased yet =
+* Fixed browser warning when saving upload settings
+* Fixed race condition in upload settings save flow
+* Fixed false negative error when saving unchanged comment video settings
+* Improved error handling: inline error messages instead of alerts
+* Fixed duration slider: allows 15-second increments (was 60 seconds)
+* Reduced maximum duration limit from 24 hours to 6 hours
+* Reduced Sentry noise: 400-level errors no longer trigger alerts
 
 = 0.0.1 - 2025-11-05 =
 * Initial beta release. Built out of media library trauma.

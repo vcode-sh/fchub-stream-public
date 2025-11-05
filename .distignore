@@ -13,6 +13,7 @@ RELEASE.md
 RELEASE-CHECKLIST.md
 RELEASE-GUIDE.md
 README-PUBLIC.md
+version-update.md
 build-release.sh
 sync-to-public.sh
 knowledgebase/
