@@ -45,12 +45,13 @@ class VideoPlayerRenderer {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string      $video_id Video ID.
-	 * @param string|null $provider Optional. Provider name. If not specified, uses enabled provider.
-	 * @param string|null $status   Optional. Video status (pending, ready, etc.).
+	 * @param string      $video_id            Video ID.
+	 * @param string|null $provider            Optional. Provider name. If not specified, uses enabled provider.
+	 * @param string|null $status              Optional. Video status (pending, ready, etc.).
+	 * @param string      $customer_subdomain  Optional. Cloudflare customer subdomain for encoding overlay.
 	 * @return string Player HTML.
 	 */
-	public function get_player_html( string $video_id, ?string $provider = null, ?string $status = null ): string {
+	public function get_player_html( string $video_id, ?string $provider = null, ?string $status = null, string $customer_subdomain = '' ): string {
 		// Use specified provider or get enabled provider.
 		$enabled_provider = $provider ?? StreamConfigService::get_enabled_provider();
 
@@ -61,8 +62,11 @@ class VideoPlayerRenderer {
 		$player_html = '';
 
 		if ( 'cloudflare_stream' === $enabled_provider ) {
-			$config             = StreamConfigService::get_cloudflare_config();
-			$customer_subdomain = $config['customer_subdomain'] ?? '';
+			$config = StreamConfigService::get_cloudflare_config();
+			// Use customer_subdomain from parameter if provided, otherwise from config.
+			if ( empty( $customer_subdomain ) ) {
+				$customer_subdomain = $config['customer_subdomain'] ?? '';
+			}
 
 			// Normalize customer_subdomain - extract only subdomain part if full URL is provided.
 			if ( ! empty( $customer_subdomain ) ) {
@@ -78,7 +82,8 @@ class VideoPlayerRenderer {
 			// If status is pending or null/unknown, show thumbnail with encoding overlay.
 			// Only render iframe if status is explicitly 'ready'.
 			if ( 'ready' !== $status ) {
-				// If customer_subdomain missing, fetch from API to get it AND check readyToStream.
+				// If customer_subdomain is provided, use it directly for encoding overlay.
+				// This avoids API call when frontend already sent customer_subdomain.
 				if ( empty( $customer_subdomain ) && ! empty( $config['account_id'] ) && ! empty( $config['api_token'] ) ) {
 					try {
 						$api        = new CloudflareApiService( $config['account_id'], $config['api_token'] );

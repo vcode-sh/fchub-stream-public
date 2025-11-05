@@ -277,6 +277,9 @@ class VideoUploadController {
 	 * Handles GET /stream/video-status/{video_id} endpoint.
 	 * Checks encoding status of uploaded video.
 	 *
+	 * IMPORTANT: Checks database FIRST (updated by webhook), then falls back to API.
+	 * This ensures consistent status across all users without API rate limits.
+	 *
 	 * @since 1.0.0
 	 *
 	 * @param WP_REST_Request $request REST API request object.
@@ -344,7 +347,7 @@ class VideoUploadController {
 			// Nonce invalid but user is logged in - log warning but allow request.
 			// This handles cases where nonce expires during long polling (15+ minutes).
 			error_log( '[FCHub Stream] Status check: Invalid nonce but user is logged in (ID: ' . get_current_user_id() . '). Allowing request due to long polling.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			
+
 			// Capture to Sentry for monitoring nonce expiration during long polling.
 			try {
 				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
@@ -396,6 +399,25 @@ class VideoUploadController {
 			);
 		}
 
+		// CRITICAL FIX: Check database FIRST for status (updated by webhook).
+		// This ensures all users see consistent status without hitting API.
+		// Webhook updates database when encoding completes, so database is source of truth.
+		$db_status = $this->get_video_status_from_db( $video_id, $provider );
+
+		// If found in database with 'ready' status, return immediately without API call.
+		if ( $db_status && 'ready' === $db_status['status'] ) {
+			error_log( '[FCHub Stream] Status check: Found ready status in database for video_id: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return new WP_REST_Response(
+				array(
+					'success' => true,
+					'data'    => $db_status,
+				),
+				200
+			);
+		}
+
+		// If not found or status is 'pending'/'failed' in database, check API for latest status.
+		// This handles cases where webhook hasn't fired yet or video is still encoding.
 		$result = VideoUploadService::get_video_status( $video_id, $provider );
 
 		// Track status check in PostHog (safely).
@@ -970,13 +992,21 @@ class VideoUploadController {
 		);
 
 		// Update status and HTML if ready.
-		// Important: Only mark as ready if video has playback URLs available.
-		// Cloudflare may set readyToStream=true before playback URLs are accessible.
+		// CRITICAL: Cloudflare may send webhook with readyToStream=true and playback URLs
+		// BUT pctComplete < 100, meaning not all quality levels are encoded yet.
+		// Manifest URLs may return 404 until pctComplete reaches 100.
+		// Reference: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks
 		if ( $ready_to_stream ) {
-			// Verify video actually has playback URLs before marking as ready.
+			// Verify video has playback URLs AND pctComplete is 100 (all quality levels ready).
 			$has_playback = isset( $data['playback']['hls'] ) && ! empty( $data['playback']['hls'] );
+			$pct_complete = floatval( $data['status']['pctComplete'] ?? 0 );
 
-			if ( $has_playback ) {
+			// Log pctComplete for debugging.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[FCHub Stream] Webhook pctComplete: ' . $pct_complete . '% for video_id: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+
+			if ( $has_playback && $pct_complete >= 100 ) {
 				// Log only in debug mode.
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 					error_log( '[FCHub Stream] Video has playback URLs - marking as ready. Found ' . count( $posts ) . ' posts and ' . count( $comments ) . ' comments with video_id: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -1029,7 +1059,8 @@ class VideoUploadController {
 				}
 			} else {
 				// Log warning and track in Sentry - video may not be fully ready.
-				$warning_msg = 'Video readyToStream=true but no playback URLs yet - keeping as pending. Video ID: ' . $video_uid;
+				$reason = ! $has_playback ? 'no playback URLs' : 'pctComplete=' . $pct_complete . '% (< 100%)';
+				$warning_msg = 'Video readyToStream=true but not fully encoded (' . $reason . ') - keeping as pending. Video ID: ' . $video_uid;
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 					error_log( '[FCHub Stream] ' . $warning_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				}
@@ -1046,7 +1077,8 @@ class VideoUploadController {
 									'provider'         => 'cloudflare',
 									'video_id'         => $video_uid,
 									'ready_to_stream'  => $ready_to_stream,
-									'has_playback_hls' => isset( $data['playback']['hls'] ),
+									'has_playback_hls' => $has_playback,
+									'pct_complete'     => $pct_complete,
 								),
 							)
 						);
@@ -1055,6 +1087,7 @@ class VideoUploadController {
 					// Silently continue.
 				}
 				// Don't update status - video not fully ready yet.
+				// Cloudflare will send another webhook when pctComplete reaches 100.
 			}
 		}
 
@@ -1190,6 +1223,81 @@ class VideoUploadController {
 	}
 
 	/**
+	 * Get video status from database
+	 *
+	 * Retrieves video status from posts/comments meta.
+	 * Used by status polling to avoid redundant API calls after webhook updates.
+	 *
+	 * @since 2.0.0
+	 * @access private
+	 *
+	 * @param string $video_id Video ID to search for.
+	 * @param string $provider Provider name.
+	 *
+	 * @return array|null Video status data or null if not found.
+	 */
+	private function get_video_status_from_db( $video_id, $provider ) {
+		global $wpdb;
+
+		// Search posts first.
+		$posts = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"SELECT id, meta FROM {$wpdb->prefix}fcom_posts WHERE meta LIKE %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				'%' . $wpdb->esc_like( $video_id ) . '%'
+			)
+		);
+
+		if ( $posts ) {
+			$meta = maybe_unserialize( $posts[0]->meta );
+			if ( isset( $meta['media_preview']['video_id'] ) && $meta['media_preview']['video_id'] === $video_id ) {
+				$status = $meta['media_preview']['status'] ?? 'pending';
+				$html   = $meta['media_preview']['html'] ?? '';
+
+				return array(
+					'video_id'        => $video_id,
+					'provider'        => $provider,
+					'status'          => $status,
+					'readyToStream'   => 'ready' === $status,
+					'ready_to_stream' => 'ready' === $status,
+					'html'            => $html,
+					'thumbnail_url'   => $meta['media_preview']['image'] ?? '',
+					'playerUrl'       => '', // Will be extracted from HTML if needed.
+				);
+			}
+		}
+
+		// Search comments if not found in posts.
+		$comments = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"SELECT id, meta FROM {$wpdb->prefix}fcom_post_comments WHERE meta LIKE %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				'%' . $wpdb->esc_like( $video_id ) . '%'
+			)
+		);
+
+		if ( $comments ) {
+			$meta = maybe_unserialize( $comments[0]->meta );
+			if ( isset( $meta['media_preview']['video_id'] ) && $meta['media_preview']['video_id'] === $video_id ) {
+				$status = $meta['media_preview']['status'] ?? 'pending';
+				$html   = $meta['media_preview']['html'] ?? '';
+
+				return array(
+					'video_id'        => $video_id,
+					'provider'        => $provider,
+					'status'          => $status,
+					'readyToStream'   => 'ready' === $status,
+					'ready_to_stream' => 'ready' === $status,
+					'html'            => $html,
+					'thumbnail_url'   => $meta['media_preview']['image'] ?? '',
+					'playerUrl'       => '', // Will be extracted from HTML if needed.
+				);
+			}
+		}
+
+		// Not found in database.
+		return null;
+	}
+
+	/**
 	 * Update video status in database (posts and comments)
 	 *
 	 * Helper method to update video status in posts and comments meta.
@@ -1210,47 +1318,170 @@ class VideoUploadController {
 		$posts_table    = $wpdb->prefix . 'fcom_posts';
 		$comments_table = $wpdb->prefix . 'fcom_post_comments';
 
+		// Use video_id if provided, otherwise use video_uid.
+		$search_video_id = $video_id ?? $video_uid;
+
 		// Find posts and comments with this video_id.
 		$posts = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				"SELECT id, meta FROM {$wpdb->prefix}fcom_posts WHERE meta LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				'%' . $wpdb->esc_like( $video_uid ) . '%'
+				'%' . $wpdb->esc_like( $search_video_id ) . '%'
 			)
 		);
 
 		$comments = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				"SELECT id, meta FROM {$wpdb->prefix}fcom_post_comments WHERE meta LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				'%' . $wpdb->esc_like( $video_uid ) . '%'
+				'%' . $wpdb->esc_like( $search_video_id ) . '%'
 			)
 		);
+
+		// Log for debugging.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( '[FCHub Stream] update_video_status_in_db - video_uid: ' . $video_uid . ', video_id: ' . ( $video_id ?? 'null' ) . ', status: ' . $status . ', found posts: ' . count( $posts ) . ', found comments: ' . count( $comments ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 
 		// Update posts.
 		if ( $posts ) {
 			foreach ( $posts as $post ) {
 				$meta = maybe_unserialize( $post->meta );
 
-				if ( isset( $meta['media_preview']['video_id'] ) && $meta['media_preview']['video_id'] === $video_uid ) {
+				// Check if video_id matches video_uid OR search_video_id (for flexibility).
+				$meta_video_id = $meta['media_preview']['video_id'] ?? null;
+				if ( $meta_video_id && ( $meta_video_id === $video_uid || $meta_video_id === $search_video_id ) ) {
 					if ( 'ready' === $status && $video_id ) {
-						$provider        = $meta['media_preview']['provider'] ?? \FCHubStream\App\Services\StreamConfigService::get_enabled_provider();
-						$player_renderer = new \FCHubStream\App\Hooks\PortalIntegration\VideoPlayerRenderer();
-						$player_html     = $player_renderer->get_player_html( $video_id, $provider, 'ready' );
-						// Don't double-wrap - get_player_html() already returns wrapped HTML.
-						$meta['media_preview']['html']   = $player_html;
-						$meta['media_preview']['status'] = 'ready';
+						$provider = $meta['media_preview']['provider'] ?? \FCHubStream\App\Services\StreamConfigService::get_enabled_provider();
+
+						// Verify video exists in provider before generating HTML.
+						// This prevents 404 errors when video doesn't exist.
+						$video_exists = true;
+						if ( 'cloudflare_stream' === $provider ) {
+							try {
+								$config = \FCHubStream\App\Services\StreamConfigService::get_cloudflare_config();
+								if ( ! empty( $config['account_id'] ) && ! empty( $config['api_token'] ) ) {
+									$api        = new \FCHubStream\App\Services\CloudflareApiService( $config['account_id'], $config['api_token'] );
+									$video_info = $api->get_video( $video_id );
+
+									if ( is_wp_error( $video_info ) ) {
+										$video_exists = false;
+										$error_code   = $video_info->get_error_code();
+										$error_data   = $video_info->get_error_data();
+										$status_code  = $error_data['status'] ?? 0;
+
+										error_log( '[FCHub Stream] Video not found in Cloudflare Stream. Video ID: ' . $video_id . ', HTTP Status: ' . $status_code ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+										// Track in Sentry.
+										try {
+											if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+												SentryService::capture_message(
+													'Cloudflare Stream video not found after encoding complete. Video ID: ' . $video_id . ', HTTP Status: ' . $status_code,
+													'error',
+													array(
+														'context' => array(
+															'component'  => 'webhook',
+															'video_id'    => $video_id,
+															'video_uid'   => $video_uid,
+															'provider'    => $provider,
+															'status'      => $status,
+															'post_id'     => $post->id,
+															'http_status' => $status_code,
+															'error_code'  => $error_code,
+														),
+													)
+												);
+											}
+										} catch ( \Exception $e ) {
+											// Silently continue.
+										}
+									} elseif ( isset( $video_info['readyToStream'] ) && ! $video_info['readyToStream'] ) {
+										// Video exists but not ready yet.
+										$video_exists = false;
+										error_log( '[FCHub Stream] Video exists but not readyToStream. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+									} elseif ( empty( $video_info['playback']['hls'] ) ) {
+										// Video exists but no playback URLs.
+										$video_exists = false;
+										error_log( '[FCHub Stream] Video exists but no playback URLs. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+									}
+								}
+							} catch ( \Exception $e ) {
+								// Log error but continue - will try to generate HTML anyway.
+								error_log( '[FCHub Stream] Error checking video existence: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+								try {
+									if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+										SentryService::capture_exception( $e );
+									}
+								} catch ( \Exception $e2 ) {
+									// Silently continue.
+								}
+							}
+						}
+
+						if ( $video_exists ) {
+							$player_renderer = new \FCHubStream\App\Hooks\PortalIntegration\VideoPlayerRenderer();
+							$player_html     = $player_renderer->get_player_html( $video_id, $provider, 'ready' );
+
+							// Log if HTML generation failed or returned empty.
+							if ( empty( $player_html ) || strpos( $player_html, 'not available' ) !== false ) {
+								error_log( '[FCHub Stream] Failed to generate player HTML for video_id: ' . $video_id . ', provider: ' . $provider ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+								// Track in Sentry.
+								try {
+									if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+										SentryService::capture_message(
+											'Failed to generate player HTML after encoding complete. Video ID: ' . $video_id . ', Provider: ' . $provider,
+											'error',
+											array(
+												'context' => array(
+													'component' => 'webhook',
+													'video_id'  => $video_id,
+													'video_uid' => $video_uid,
+													'provider'  => $provider,
+													'status'    => $status,
+													'post_id'   => $post->id,
+												),
+											)
+										);
+									}
+								} catch ( \Exception $e ) {
+									// Silently continue.
+								}
+							}
+
+							// Don't double-wrap - get_player_html() already returns wrapped HTML.
+							$meta['media_preview']['html']   = $player_html;
+							$meta['media_preview']['status'] = 'ready';
+
+							// Ensure video_id is set correctly (use video_id from webhook, not from meta).
+							if ( $video_id ) {
+								$meta['media_preview']['video_id'] = $video_id;
+							}
+						} else {
+							// Video doesn't exist or not ready - keep as pending.
+							error_log( '[FCHub Stream] Video not ready or not found, keeping status as pending. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+							// Don't update status - keep as pending so polling can retry.
+						}
 					} elseif ( 'failed' === $status ) {
 						$meta['media_preview']['status']     = 'failed';
 						$meta['media_preview']['error_code'] = $error_code;
 						$meta['media_preview']['error_text'] = $error_text;
 					}
 
-					$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 						$posts_table,
 						array( 'meta' => maybe_serialize( $meta ) ),
 						array( 'id' => $post->id ),
 						array( '%s' ),
 						array( '%d' )
 					);
+
+					if ( false === $updated ) {
+						error_log( '[FCHub Stream] Failed to update post meta for post ID: ' . $post->id . ', video_id: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+						error_log( '[FCHub Stream] Successfully updated post ID: ' . $post->id . ' with video_id: ' . $video_id . ', status: ' . $status ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					}
+				} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					// Log if video_id doesn't match.
+					error_log( '[FCHub Stream] Post ID ' . $post->id . ' has video_id mismatch. Meta video_id: ' . ( $meta_video_id ?? 'null' ) . ', expected: ' . $video_uid . ' or ' . $search_video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				}
 			}
 		}
@@ -1260,27 +1491,117 @@ class VideoUploadController {
 			foreach ( $comments as $comment_row ) {
 				$meta = maybe_unserialize( $comment_row->meta );
 
-				if ( isset( $meta['media_preview']['video_id'] ) && $meta['media_preview']['video_id'] === $video_uid ) {
+				// Check if video_id matches video_uid OR search_video_id (for flexibility).
+				$meta_video_id = $meta['media_preview']['video_id'] ?? null;
+				if ( $meta_video_id && ( $meta_video_id === $video_uid || $meta_video_id === $search_video_id ) ) {
 					if ( 'ready' === $status && $video_id ) {
-						$provider        = $meta['media_preview']['provider'] ?? \FCHubStream\App\Services\StreamConfigService::get_enabled_provider();
-						$player_renderer = new \FCHubStream\App\Hooks\PortalIntegration\VideoPlayerRenderer();
-						$player_html     = $player_renderer->get_player_html( $video_id, $provider, 'ready' );
-						// Don't double-wrap - get_player_html() already returns wrapped HTML.
-						$meta['media_preview']['html']   = $player_html;
-						$meta['media_preview']['status'] = 'ready';
+						$provider = $meta['media_preview']['provider'] ?? \FCHubStream\App\Services\StreamConfigService::get_enabled_provider();
+
+						// Verify video exists in provider before generating HTML.
+						// This prevents 404 errors when video doesn't exist.
+						$video_exists = true;
+						if ( 'cloudflare_stream' === $provider ) {
+							try {
+								$config = \FCHubStream\App\Services\StreamConfigService::get_cloudflare_config();
+								if ( ! empty( $config['account_id'] ) && ! empty( $config['api_token'] ) ) {
+									$api        = new \FCHubStream\App\Services\CloudflareApiService( $config['account_id'], $config['api_token'] );
+									$video_info = $api->get_video( $video_id );
+
+									if ( is_wp_error( $video_info ) ) {
+										$video_exists = false;
+										$error_code   = $video_info->get_error_code();
+										$error_data   = $video_info->get_error_data();
+										$status_code  = $error_data['status'] ?? 0;
+
+										error_log( '[FCHub Stream] Video not found in Cloudflare Stream (comment). Video ID: ' . $video_id . ', HTTP Status: ' . $status_code ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+										// Track in Sentry.
+										try {
+											if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+												SentryService::capture_message(
+													'Cloudflare Stream video not found after encoding complete (comment). Video ID: ' . $video_id . ', HTTP Status: ' . $status_code,
+													'error',
+													array(
+														'context' => array(
+															'component'  => 'webhook',
+															'video_id'    => $video_id,
+															'video_uid'   => $video_uid,
+															'provider'    => $provider,
+															'status'      => $status,
+															'comment_id'  => $comment_row->id,
+															'http_status' => $status_code,
+															'error_code'  => $error_code,
+														),
+													)
+												);
+											}
+										} catch ( \Exception $e ) {
+											// Silently continue.
+										}
+									} elseif ( isset( $video_info['readyToStream'] ) && ! $video_info['readyToStream'] ) {
+										// Video exists but not ready yet.
+										$video_exists = false;
+										error_log( '[FCHub Stream] Video exists but not readyToStream (comment). Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+									} elseif ( empty( $video_info['playback']['hls'] ) ) {
+										// Video exists but no playback URLs.
+										$video_exists = false;
+										error_log( '[FCHub Stream] Video exists but no playback URLs (comment). Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+									}
+								}
+							} catch ( \Exception $e ) {
+								// Log error but continue - will try to generate HTML anyway.
+								error_log( '[FCHub Stream] Error checking video existence (comment): ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+								try {
+									if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+										SentryService::capture_exception( $e );
+									}
+								} catch ( \Exception $e2 ) {
+									// Silently continue.
+								}
+							}
+						}
+
+						if ( $video_exists ) {
+							$player_renderer = new \FCHubStream\App\Hooks\PortalIntegration\VideoPlayerRenderer();
+							$player_html     = $player_renderer->get_player_html( $video_id, $provider, 'ready' );
+
+							// Log if HTML generation failed or returned empty.
+							if ( empty( $player_html ) || strpos( $player_html, 'not available' ) !== false ) {
+								error_log( '[FCHub Stream] Failed to generate player HTML for comment video_id: ' . $video_id . ', provider: ' . $provider ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+							}
+
+							// Don't double-wrap - get_player_html() already returns wrapped HTML.
+							$meta['media_preview']['html']   = $player_html;
+							$meta['media_preview']['status'] = 'ready';
+
+							// Ensure video_id is set correctly (use video_id from webhook, not from meta).
+							if ( $video_id ) {
+								$meta['media_preview']['video_id'] = $video_id;
+							}
+						} else {
+							// Video doesn't exist or not ready - keep as pending.
+							error_log( '[FCHub Stream] Video not ready or not found (comment), keeping status as pending. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+							// Don't update status - keep as pending so polling can retry.
+						}
 					} elseif ( 'failed' === $status ) {
 						$meta['media_preview']['status']     = 'failed';
 						$meta['media_preview']['error_code'] = $error_code;
 						$meta['media_preview']['error_text'] = $error_text;
 					}
 
-					$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 						$comments_table,
 						array( 'meta' => maybe_serialize( $meta ) ),
 						array( 'id' => $comment_row->id ),
 						array( '%s' ),
 						array( '%d' )
 					);
+
+					if ( false === $updated ) {
+						error_log( '[FCHub Stream] Failed to update comment meta for comment ID: ' . $comment_row->id . ', video_id: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+						error_log( '[FCHub Stream] Successfully updated comment ID: ' . $comment_row->id . ' with video_id: ' . $video_id . ', status: ' . $status ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					}
 				}
 			}
 		}

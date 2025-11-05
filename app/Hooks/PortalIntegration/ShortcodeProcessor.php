@@ -92,24 +92,34 @@ class ShortcodeProcessor {
 				$video_id = $matches[1];
 				$provider = $matches[2] ?? null;
 
-				// Get player HTML with status=pending (will show encoding overlay).
-				$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
+				// Get status from media object (sent from frontend after upload).
+				// Default to 'pending' if not provided.
+				$status = $request_data['media']['status'] ?? 'pending';
+
+				// Get customer_subdomain from frontend (for Cloudflare encoding overlay).
+				$customer_subdomain = $request_data['media']['customer_subdomain'] ?? '';
+
+				error_log( '[FCHub Stream] process_shortcodes_before_save() - Video ID: ' . $video_id . ', Provider: ' . ( $provider ?? 'auto' ) . ', Status: ' . $status . ', Customer subdomain: ' . $customer_subdomain ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+				// Get player HTML with actual status from frontend.
+				// Pass customer_subdomain as 4th parameter for encoding overlay.
+				$player_html = $this->player_renderer->get_player_html( $video_id, $provider, $status, $customer_subdomain );
 
 				// Get thumbnail.
 				$thumbnail_url    = $request_data['media']['image'] ?? '';
 				$enabled_provider = $provider ?? StreamConfigService::get_enabled_provider();
 
-				// Wrap player HTML with margin fix.
-				$wrapped_html = '<div style="margin: 0 !important;">' . $player_html . '</div>';
+				// Note: player_html already includes wrapper div with margin fix from VideoPlayerRenderer.
+				// No need to wrap again - just use as-is.
 
 				// Create media_preview.
 				$data['meta']['media_preview'] = array(
 					'type'         => 'iframe_html',
 					'provider'     => $enabled_provider,
-					'html'         => $wrapped_html,
+					'html'         => $player_html,
 					'image'        => $thumbnail_url,
 					'video_id'     => $video_id,
-					'status'       => 'pending', // Will be updated to 'ready' by webhook.
+					'status'       => $status, // Use status from frontend (pending/ready).
 					'content_type' => 'video',
 				);
 
@@ -209,10 +219,18 @@ class ShortcodeProcessor {
 				$video_id = $matches[1];
 				$provider = $matches[2] ?? null;
 
-				error_log( '[FCHub Stream] process_comment_media_after_create() - video_id: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				// Get status from media object (sent from frontend after upload).
+				// Default to 'pending' if not provided.
+				$status = $request_data['media']['status'] ?? 'pending';
 
-				// Get player HTML with pending status (new upload).
-				$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
+				// Get customer_subdomain from frontend (for Cloudflare encoding overlay).
+				$customer_subdomain = $request_data['media']['customer_subdomain'] ?? '';
+
+				error_log( '[FCHub Stream] process_comment_media_after_create() - Video ID: ' . $video_id . ', Provider: ' . ( $provider ?? 'auto' ) . ', Status: ' . $status . ', Customer subdomain: ' . $customer_subdomain ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+				// Get player HTML with actual status from frontend.
+				// Pass customer_subdomain as 4th parameter for encoding overlay.
+				$player_html = $this->player_renderer->get_player_html( $video_id, $provider, $status, $customer_subdomain );
 
 				// Get thumbnail.
 				$thumbnail_url    = $request_data['media']['image'] ?? '';
@@ -221,17 +239,17 @@ class ShortcodeProcessor {
 				// Get current meta (use model accessor).
 				$meta = $comment->meta ?? array();
 
-				// Wrap player HTML with CSS class for consistent styling.
-				$wrapped_html = '<div class="fchub-stream-player-wrapper">' . $player_html . '</div>';
+				// Note: player_html already includes wrapper div from VideoPlayerRenderer.
+				// No need to wrap again - just use as-is.
 
 				// Create media_preview for comment.
 				$meta['media_preview'] = array(
 					'type'         => 'iframe_html',
 					'provider'     => $enabled_provider,
-					'html'         => $wrapped_html,
+					'html'         => $player_html,
 					'image'        => $thumbnail_url,
 					'video_id'     => $video_id,
-					'status'       => 'pending', // Will be updated to 'ready' by webhook.
+					'status'       => $status, // Use status from frontend (pending/ready).
 					'content_type' => 'video',
 				);
 
@@ -287,18 +305,16 @@ class ShortcodeProcessor {
 						if ( strpos( $html, 'fchub-stream-encoding' ) !== false || strpos( $html, 'Encoding video...' ) !== false ) {
 							// Regenerate HTML with ready status (no encoding overlay).
 							$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'ready' );
-							// Wrap with margin fix for consistency.
-							$wrapped_html                                  = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-							$data['feed']['meta']['media_preview']['html'] = $wrapped_html;
+							// Note: player_html already includes wrapper - no need to wrap again.
+							$data['feed']['meta']['media_preview']['html'] = $player_html;
 							error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . ( $data['feed']['id'] ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 						}
 					} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 						// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
 						// HTML contains iframe but status is pending - regenerate with encoding overlay.
 						$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
-						// Wrap with margin fix for consistency.
-						$wrapped_html                                  = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-						$data['feed']['meta']['media_preview']['html'] = $wrapped_html;
+						// Note: player_html already includes wrapper - no need to wrap again.
+						$data['feed']['meta']['media_preview']['html'] = $player_html;
 						error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . ( $data['feed']['id'] ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 						// Note: We don't check video_exists() for pending videos because:
@@ -400,18 +416,16 @@ class ShortcodeProcessor {
 										if ( strpos( $html, 'fchub-stream-encoding' ) !== false || strpos( $html, 'Encoding video...' ) !== false ) {
 											// Regenerate HTML with ready status (no encoding overlay).
 											$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'ready' );
-											// Wrap with margin fix for consistency.
-											$wrapped_html                                = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-											$feed_array['meta']['media_preview']['html'] = $wrapped_html;
+											// Note: player_html already includes wrapper - no need to wrap again.
+											$feed_array['meta']['media_preview']['html'] = $player_html;
 											error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 										}
 									} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 										// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
 										// HTML contains iframe but status is pending - regenerate with encoding overlay.
 										$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
-										// Wrap with margin fix for consistency.
-										$wrapped_html                                = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-										$feed_array['meta']['media_preview']['html'] = $wrapped_html;
+										// Note: player_html already includes wrapper - no need to wrap again.
+										$feed_array['meta']['media_preview']['html'] = $player_html;
 										error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 										// Note: We don't check video_exists() for pending videos because:
@@ -453,9 +467,8 @@ class ShortcodeProcessor {
 									if ( strpos( $html, 'fchub-stream-encoding' ) !== false || strpos( $html, 'Encoding video...' ) !== false ) {
 										// Regenerate HTML with ready status (no encoding overlay).
 										$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'ready' );
-										// Wrap with margin fix for consistency.
-										$wrapped_html                                        = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-										$feeds_data[ $key ]['meta']['media_preview']['html'] = $wrapped_html;
+										// Note: player_html already includes wrapper - no need to wrap again.
+										$feeds_data[ $key ]['meta']['media_preview']['html'] = $player_html;
 										$feed_id = $feed['id'] ?? 'unknown';
 										error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 										$modified = true;
@@ -464,9 +477,8 @@ class ShortcodeProcessor {
 									// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
 									// HTML contains iframe but status is pending - regenerate with encoding overlay.
 									$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
-									// Wrap with margin fix for consistency.
-									$wrapped_html                                        = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-									$feeds_data[ $key ]['meta']['media_preview']['html'] = $wrapped_html;
+									// Note: player_html already includes wrapper - no need to wrap again.
+									$feeds_data[ $key ]['meta']['media_preview']['html'] = $player_html;
 									$feed_id = $feed['id'] ?? 'unknown';
 									error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 									$modified = true;

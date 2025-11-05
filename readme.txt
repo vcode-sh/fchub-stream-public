@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.7
 Requires PHP: 8.3
-Stable tag: 0.0.4
+Stable tag: 0.0.5
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -70,6 +70,14 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.0.5 - 2025-11-05 =
+* Fixed videos showing "Video not found" 404 errors after encoding screen
+* Fixed Cloudflare webhook marking videos as ready before encoding actually finished
+* Now waits for pctComplete: 100 before showing video player (not just readyToStream: true)
+* Fixed page refresh showing encoding screen for already-ready videos
+* Videos work immediately after encoding without manual page refresh
+* Encoding screen → video works automatically. Zero refresh. Zero 404 errors.
 
 = 0.0.4 - 2025-11-05 =
 * Fixed feed reloads showing encoding overlay when video is already ready

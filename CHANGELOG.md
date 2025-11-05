@@ -4,7 +4,37 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
-## [0.0.5] - upcoming release
+## [0.0.5] - 2025-11-05
+
+### Fixed
+
+**Videos Actually Work After Encoding (Without Refreshing Like It's 2010)**
+- Fixed that annoying thing where encoding screen disappeared, "Video not found" appeared, you refreshed the page, and suddenly video worked
+- Cloudflare was lying. Said video was ready. Wasn't ready. Classic.
+- Now we wait for Cloudflare to actually finish (not just pretend to finish) before showing player
+- Encoding screen → video works automatically. Zero refresh. Zero 404 errors. Zero trust issues with CDN providers.
+
+**Page Refresh No Longer Shows Encoding Screen For Already-Ready Videos**
+- Fixed that thing where you refresh and encoding screen flashes before video player appears
+- Video is ready. Database knows it. Browser shows it immediately now.
+- Like loading a webpage but without the unnecessary suspense.
+
+### Notes
+
+**What Actually Happened:**
+- Cloudflare sends "ready!" webhook when video is 40% done encoding
+- We believed it (mistake)
+- Rendered video player immediately
+- Player tried loading video that wasn't actually done encoding yet
+- 404 errors. User confusion. Page refreshes. Sadness.
+
+**What Happens Now:**
+- We don't trust Cloudflare's "ready!" until it's actually 100% done
+- Then we check if video files are actually accessible (not just "ready")
+- Then we render player
+- Video works. First try. No refresh needed.
+
+Built because "just refresh the page" is not a feature. It's giving up.
 
 ## [0.0.4] - 2025-11-05
 

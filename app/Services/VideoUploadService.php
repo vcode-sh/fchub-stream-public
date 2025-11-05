@@ -477,6 +477,59 @@ class VideoUploadService {
 			return $result;
 		}
 
+		// Set allowedOrigins to allow video playback from WordPress site domain.
+		// This prevents 500 errors when other users try to view the video.
+		$video_uid = $result['uid'] ?? '';
+		if ( ! empty( $video_uid ) ) {
+			// Get WordPress site domain (without protocol).
+			$site_url = wp_parse_url( home_url(), PHP_URL_HOST );
+			if ( $site_url ) {
+				// Remove www. prefix if present (Cloudflare Stream handles both).
+				$allowed_origins = array( $site_url );
+				if ( strpos( $site_url, 'www.' ) === 0 ) {
+					$allowed_origins[] = substr( $site_url, 4 );
+				} elseif ( strpos( $site_url, 'www.' ) !== 0 ) {
+					$allowed_origins[] = 'www.' . $site_url;
+				}
+
+				// Update video with allowedOrigins.
+				$update_result = $api->update_video(
+					$video_uid,
+					array(
+						'allowedOrigins' => $allowed_origins,
+					)
+				);
+
+				if ( is_wp_error( $update_result ) ) {
+					// Log error but don't fail upload - video was uploaded successfully.
+					error_log( '[FCHub Stream] Failed to set allowedOrigins for video ' . $video_uid . ': ' . $update_result->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+					// Track in Sentry.
+					try {
+						if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+							SentryService::capture_message(
+								'Failed to set allowedOrigins for Cloudflare Stream video. Video ID: ' . $video_uid . ', Error: ' . $update_result->get_error_message(),
+								'warning',
+								array(
+									'context' => array(
+										'component'       => 'video_upload',
+										'provider'        => 'cloudflare',
+										'video_id'        => $video_uid,
+										'allowed_origins' => $allowed_origins,
+										'error_message'   => $update_result->get_error_message(),
+									),
+								)
+							);
+						}
+					} catch ( \Exception $e ) {
+						// Silently continue.
+					}
+				} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+						error_log( '[FCHub Stream] Successfully set allowedOrigins for video ' . $video_uid . ': ' . wp_json_encode( $allowed_origins ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
+			}
+		}
+
 		// Format response.
 		return self::format_cloudflare_response( $result, $cloudflare );
 	}
@@ -659,9 +712,17 @@ class VideoUploadService {
 		// Generate player URL and HTML.
 		$player_url = "https://{$customer_subdomain}.cloudflarestream.com/{$video_id}/iframe";
 
-		// Only generate player HTML if video is ready to stream AND has playback URLs.
-		// Cloudflare may set readyToStream=true before playback URLs are available.
-		$actual_ready = $ready && isset( $result['playback']['hls'] ) && ! empty( $result['playback']['hls'] );
+		// CRITICAL: Only mark as ready if video has playback URLs AND pctComplete is 100.
+		// Cloudflare may return readyToStream=true with playback URLs BUT pctComplete < 100.
+		// In this case, manifest URLs return 404 until pctComplete reaches 100.
+		// Reference: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks
+		$pct_complete = floatval( $result['status']['pctComplete'] ?? 0 );
+		$actual_ready = $ready && isset( $result['playback']['hls'] ) && ! empty( $result['playback']['hls'] ) && $pct_complete >= 100;
+
+		// Log pctComplete for debugging (only if video appears ready).
+		if ( $ready && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( '[FCHub Stream] Video pctComplete: ' . $pct_complete . '% for video_id: ' . $video_id . ', actual_ready: ' . ( $actual_ready ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 		$player_html  = '';
 		if ( $actual_ready ) {
 			// Full HTML with wrapper div matching PortalIntegration format.

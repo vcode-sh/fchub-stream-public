@@ -748,7 +748,7 @@ class PostHogService {
 			'provider_switched',
 			array(
 				'old_provider'            => $old_provider,
-				'new_provider'           => $new_provider,
+				'new_provider'            => $new_provider,
 				'$process_person_profile' => false,
 			)
 		);

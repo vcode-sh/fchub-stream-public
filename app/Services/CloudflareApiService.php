@@ -606,6 +606,58 @@ class CloudflareApiService extends AbstractApiClient {
 	}
 
 	/**
+	 * Update video settings
+	 *
+	 * Updates video settings such as allowedOrigins, requireSignedURLs, etc.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $video_uid Video UID to update.
+	 * @param array  $options   Video options to update.
+	 *                         @type array  $allowedOrigins     Array of allowed origin domains.
+	 *                         @type bool   $requireSignedURLs  Whether to require signed URLs.
+	 *                         @type string $creator           Creator ID.
+	 *                         @type array  $meta              Video metadata.
+	 *
+	 * @return array|WP_Error Updated video data on success, WP_Error on failure.
+	 *
+	 * @throws WP_Error If video_uid is empty or API request fails.
+	 */
+	public function update_video( $video_uid, $options = array() ) {
+		if ( empty( $video_uid ) ) {
+			return new WP_Error(
+				$this->get_error_code_prefix(),
+				__( 'Video UID is required.', 'fchub-stream' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$response = $this->make_request(
+			'POST',
+			"/accounts/{$this->account_id}/stream/{$video_uid}",
+			$options
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$parsed = $this->parse_response( $response );
+
+		if ( 200 === $parsed['status_code'] &&
+			isset( $parsed['data']['success'] ) &&
+			true === $parsed['data']['success'] ) {
+			return $parsed['data']['result'];
+		}
+
+		return $this->create_error(
+			$parsed['data'],
+			$parsed['status_code'],
+			__( 'Failed to update video.', 'fchub-stream' )
+		);
+	}
+
+	/**
 	 * Delete video from Cloudflare Stream
 	 *
 	 * Deletes a video from Cloudflare Stream by its video UID.
