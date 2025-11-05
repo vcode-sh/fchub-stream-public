@@ -4,39 +4,6 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
-## [Unreleased]
-
-### ✨ New Features
-
-**PostHog Analytics Integration**
-- Added PostHog analytics tracking for user behavior analysis
-- Track video uploads, provider configurations, and user interactions
-- Configurable via admin settings with connection testing
-- GDPR-compliant with anonymous user tracking for non-logged-in users
-- Automatic event tracking for key actions (video uploads, provider changes)
-
-### 🔧 Technical Changes
-
-- Added `posthog/posthog-php` dependency for analytics tracking
-- New `PostHogService` class with comprehensive tracking methods
-- Extended configuration system to support PostHog settings
-- Added PostHog tab to admin interface with full configuration UI
-- REST API endpoints: `/config/posthog`, `/config/posthog/test`
-
-### 📊 Analytics Events
-
-**Automatic Tracking:**
-- `video_upload` - File size, duration, format, provider, source
-- `provider_config` - Provider enable/disable events
-- `video_view` - Video playback tracking (future implementation)
-
-**User Properties:**
-- Plugin version, WordPress version, PHP version, environment
-- Active stream provider, user role (for logged-in users)
-- Anonymous ID generation for non-authenticated users
-
----
-
 ## [0.0.1] - 2025-11-05
 
 First release. Beta testing. Video streaming for FluentCommunity because WordPress media library and video don't mix.
@@ -65,6 +32,12 @@ First release. Beta testing. Video streaming for FluentCommunity because WordPre
 - WordPress notifies you about new versions
 - Click update → installs from GitHub → done
 - No manual downloads unless you want them
+
+**Analytics (Optional)**
+- PostHog integration for tracking video uploads and usage
+- Configurable in admin settings
+- GDPR-compliant, anonymous for non-logged users
+- Disabled by default
 
 ### What Doesn't Work Yet
 
@@ -98,44 +71,4 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
-## How This Works
-
-**For users**: Check here before updating. See what's new, what's fixed, what broke.
-
-**For me** (when releasing):
-1. Move `[Unreleased]` stuff to new version section
-2. Add date: `## [0.1.0] - 2025-12-01`
-3. Keep it short and VOICE-TONE.md style (sarcastic, honest, no BS)
-4. Group by: What Works, What's Fixed, What Broke, What's New
-5. Update version links at bottom
-
-**Versioning**:
-- Big changes (1.0.0) - might break stuff
-- New features (0.1.0) - backwards compatible
-- Bug fixes (0.0.1) - no new features
-
-**Example for next release**:
-
-```markdown
-## [0.1.0] - 2025-12-01
-
-### What's New
-- Bunny.net works now (tested, both providers functional)
-- Comment video uploads (you asked, I delivered)
-
-### Fixed
-- Upload progress bar actually accurate now
-- Cloudflare webhooks no longer randomly fail
-- Video deletion doesn't explode when offline
-
-### What Changed
-- Settings panel reorganized (less cluttered)
-- Upload UI slightly less ugly
-```
-
-Built out of media library trauma. Documented out of necessity.
-
----
-
-[Unreleased]: https://github.com/vcode-sh/fchub-stream-public/compare/v0.0.1...HEAD
 [0.0.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.1
