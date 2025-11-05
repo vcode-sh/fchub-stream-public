@@ -82,6 +82,9 @@ $router->withPolicy( 'PortalPolicy' )->group(
 		// Video status check (Portal endpoint - requires user to be logged in).
 		$router->get( 'video-status/:video_id', array( VideoUploadController::class, 'check_status' ) );
 
+		// Video status update (Portal endpoint - updates database when frontend confirms video is ready).
+		$router->post( 'video-update-status', array( VideoUploadController::class, 'update_status' ) );
+
 		// Note: PostHog event tracking endpoint is now in the main group above to support both portal and admin apps.
 	}
 );

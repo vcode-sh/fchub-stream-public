@@ -307,7 +307,13 @@ class ShortcodeProcessor {
 							$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'ready' );
 							// Note: player_html already includes wrapper - no need to wrap again.
 							$data['feed']['meta']['media_preview']['html'] = $player_html;
-							error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . ( $data['feed']['id'] ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+							$feed_id = $data['feed']['id'] ?? null;
+							error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . ( $feed_id ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+							// CRITICAL: Update database so next page load shows iframe immediately.
+							if ( $feed_id ) {
+								$this->update_feed_meta_in_db( $feed_id, $data['feed']['meta'] );
+							}
 						}
 					} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 						// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
@@ -419,6 +425,10 @@ class ShortcodeProcessor {
 											// Note: player_html already includes wrapper - no need to wrap again.
 											$feed_array['meta']['media_preview']['html'] = $player_html;
 											error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+											// CRITICAL: Update database so next page load shows iframe immediately.
+											// This is fallback when polling didn't update (e.g., webhook came during page load).
+											$this->update_feed_meta_in_db( $feed_id, $feed_array['meta'] );
 										}
 									} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 										// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
@@ -472,6 +482,10 @@ class ShortcodeProcessor {
 										$feed_id = $feed['id'] ?? 'unknown';
 										error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 										$modified = true;
+
+										// CRITICAL: Update database so next page load shows iframe immediately.
+										// This is fallback when polling didn't update (e.g., webhook came during page load).
+										$this->update_feed_meta_in_db( $feed_id, $feeds_data[ $key ]['meta'] );
 									}
 								} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 									// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
@@ -517,5 +531,46 @@ class ShortcodeProcessor {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Update feed meta in database
+	 *
+	 * Helper method to update post/comment meta in database.
+	 * Used to persist HTML changes so next page load doesn't show encoding overlay.
+	 *
+	 * @since 2.0.0
+	 * @access private
+	 *
+	 * @param int   $feed_id Feed/post ID.
+	 * @param array $meta    Updated meta array.
+	 *
+	 * @return void
+	 */
+	private function update_feed_meta_in_db( $feed_id, $meta ) {
+		global $wpdb;
+
+		// Check if already updated (prevent multiple writes per request).
+		static $updated_feeds = array();
+
+		if ( isset( $updated_feeds[ $feed_id ] ) ) {
+			return; // Already updated this request.
+		}
+
+		// Update database.
+		$updated = $wpdb->update(
+			$wpdb->prefix . 'fcom_posts',
+			array( 'meta' => maybe_serialize( $meta ) ),
+			array( 'id' => $feed_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+
+		if ( false !== $updated ) {
+			$updated_feeds[ $feed_id ] = true;
+			error_log( '[FCHub Stream] Database updated for feed ID: ' . $feed_id . ' (prevents encoding flash on refresh)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		} else {
+			error_log( '[FCHub Stream] Failed to update database for feed ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
 	}
 }

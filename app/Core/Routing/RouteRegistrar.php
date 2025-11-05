@@ -338,6 +338,22 @@ class RouteRegistrar {
 					)
 				);
 
+				// Video status update (Portal endpoint - updates database when frontend confirms ready).
+				register_rest_route(
+					$namespace,
+					'/stream/video-update-status',
+					array(
+						'methods'             => 'POST',
+						'callback'            => function ( $wp_request ) {
+							$controller = new \FCHubStream\App\Http\Controllers\VideoUploadController();
+							return $controller->update_status( $wp_request );
+						},
+						'permission_callback' => function () {
+							return is_user_logged_in();
+						},
+					)
+				);
+
 				// Upload settings endpoints (Admin endpoints).
 				register_rest_route(
 					$namespace,

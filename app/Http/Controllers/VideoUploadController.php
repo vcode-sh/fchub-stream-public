@@ -476,6 +476,63 @@ class VideoUploadController {
 	}
 
 	/**
+	 * Update video status in database
+	 *
+	 * Handles POST /stream/video-update-status endpoint.
+	 * Called by frontend when manifest probe confirms video is ready.
+	 * Updates database to prevent encoding overlay flash on page refresh.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param WP_REST_Request $request REST API request object.
+	 *
+	 * @return WP_REST_Response|WP_Error Response with result or error.
+	 */
+	public function update_status( WP_REST_Request $request ) {
+		// Check permissions - must be logged in user.
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error(
+				'unauthorized',
+				__( 'You must be logged in to update video status.', 'fchub-stream' ),
+				array( 'status' => 401 )
+			);
+		}
+
+		$video_id = $request->get_param( 'video_id' );
+		$provider = $request->get_param( 'provider' );
+		$status   = $request->get_param( 'status' );
+		$html     = $request->get_param( 'html' );
+
+		if ( empty( $video_id ) || empty( $provider ) || empty( $status ) ) {
+			return new WP_Error(
+				'missing_params',
+				__( 'Video ID, provider, and status are required.', 'fchub-stream' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Only allow updating to 'ready' status (security - don't allow arbitrary status changes).
+		if ( 'ready' !== $status ) {
+			return new WP_Error(
+				'invalid_status',
+				__( 'Only ready status updates are allowed.', 'fchub-stream' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Update database using helper method (same as webhook uses).
+		$this->update_video_status_in_db( $video_id, 'ready', $video_id );
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Video status updated successfully.', 'fchub-stream' ),
+			),
+			200
+		);
+	}
+
+	/**
 	 * Handle provider webhook
 	 *
 	 * Handles POST /stream/webhook/{provider} endpoint.
@@ -1058,7 +1115,7 @@ class VideoUploadController {
 					// Silently continue.
 				}
 			} else {
-				// Log warning and track in Sentry - video may not be fully ready.
+				// Log warning and track in Sentry - video may not be fully ready yet.
 				$reason = ! $has_playback ? 'no playback URLs' : 'pctComplete=' . $pct_complete . '% (< 100%)';
 				$warning_msg = 'Video readyToStream=true but not fully encoded (' . $reason . ') - keeping as pending. Video ID: ' . $video_uid;
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {

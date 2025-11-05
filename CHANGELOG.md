@@ -4,6 +4,29 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.1.0] - 2025-11-05
+
+### Fixed
+
+**Videos Actually Work After Encoding (No More 404 Mystery)**
+- Fixed "Video not found" errors after encoding finished
+- Fixed encoding screen flashing on every page refresh
+- Cloudflare said "ready!" at 40% encoding. We believed them. Mistake.
+- Now we verify videos are 100% done AND files accessible before showing player
+- Encoding → video works automatically. Zero refresh. Zero 404 errors.
+
+**What Was Broken:**
+- Cloudflare webhook: `pctComplete: 40%` → we rendered iframe → manifest 404
+- Webhooks "best effort" → many never arrived → database stuck at pending forever
+- Every refresh: encoding flash → polling → iframe (annoying)
+
+**The Fix:**
+- Wait for `pctComplete: 100%` (not 40%)
+- Probe manifest URLs before rendering (HEAD request, only render on HTTP 200)
+- Update database when video ready (no more encoding flash on refresh)
+
+Built because "just refresh the page" isn't user experience. It's surrender.
+
 ## [0.0.5] - 2025-11-05
 
 ### Fixed
@@ -199,6 +222,7 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.1.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.1.0
 [0.0.5]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.5
 [0.0.4]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.4
 [0.0.3]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.3
