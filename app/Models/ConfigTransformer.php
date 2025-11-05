@@ -99,32 +99,32 @@ class ConfigTransformer {
 		}
 
 		// Cloudflare settings.
-		if ( isset( $config['cloudflare'] ) ) {
+		if ( isset( $config['cloudflare'] ) && is_array( $config['cloudflare'] ) ) {
 			$sanitized['cloudflare'] = self::sanitize_cloudflare( $config['cloudflare'] );
 		}
 
 		// Bunny.net settings.
-		if ( isset( $config['bunny'] ) ) {
+		if ( isset( $config['bunny'] ) && is_array( $config['bunny'] ) ) {
 			$sanitized['bunny'] = self::sanitize_bunny( $config['bunny'] );
 		}
 
 		// Defaults.
-		if ( isset( $config['defaults'] ) ) {
+		if ( isset( $config['defaults'] ) && is_array( $config['defaults'] ) ) {
 			$sanitized['defaults'] = self::sanitize_defaults( $config['defaults'] );
 		}
 
 		// Comment video settings.
-		if ( isset( $config['comment_video'] ) ) {
+		if ( isset( $config['comment_video'] ) && is_array( $config['comment_video'] ) ) {
 			$sanitized['comment_video'] = self::sanitize_comment_video( $config['comment_video'] );
 		}
 
 		// Webhook settings.
-		if ( isset( $config['webhook'] ) ) {
+		if ( isset( $config['webhook'] ) && is_array( $config['webhook'] ) ) {
 			$sanitized['webhook'] = self::sanitize_webhook( $config['webhook'] );
 		}
 
 		// Sentry settings.
-		if ( isset( $config['sentry'] ) ) {
+		if ( isset( $config['sentry'] ) && is_array( $config['sentry'] ) ) {
 			$sanitized['sentry'] = self::sanitize_sentry( $config['sentry'] );
 		}
 
@@ -152,7 +152,7 @@ class ConfigTransformer {
 				? $cloudflare['api_token'] // Don't sanitize encrypted token.
 				: '',
 			'customer_subdomain' => isset( $cloudflare['customer_subdomain'] )
-				? self::normalize_customer_subdomain( $cloudflare['customer_subdomain'] )
+				? self::normalize_customer_subdomain( (string) $cloudflare['customer_subdomain'] )
 				: '',
 			'webhook_secret'     => isset( $cloudflare['webhook_secret'] )
 				? $cloudflare['webhook_secret'] // Don't sanitize encrypted secret.

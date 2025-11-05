@@ -732,6 +732,29 @@ class PostHogService {
 	}
 
 	/**
+	 * Track provider switch event.
+	 *
+	 * Tracks when active provider is changed.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param string $old_provider Previous provider name.
+	 * @param string $new_provider New provider name.
+	 *
+	 * @return void
+	 */
+	public static function track_provider_switched( string $old_provider, string $new_provider ): void {
+		self::capture_event(
+			'provider_switched',
+			array(
+				'old_provider'            => $old_provider,
+				'new_provider'           => $new_provider,
+				'$process_person_profile' => false,
+			)
+		);
+	}
+
+	/**
 	 * Track provider configuration event.
 	 *
 	 * Tracks when a provider is configured or reconfigured.

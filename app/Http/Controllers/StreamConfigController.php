@@ -16,6 +16,7 @@ use FCHubStream\App\Services\StreamConfigService;
 use FCHubStream\App\Services\SentryService;
 use FCHubStream\App\Services\PostHogService;
 use FCHubStream\App\Models\StreamConfig;
+use FCHubStream\App\Http\Controllers\Traits\ParsesJsonRequest;
 
 /**
  * Main Stream Configuration Controller.
@@ -26,6 +27,7 @@ use FCHubStream\App\Models\StreamConfig;
  * @since 1.0.0
  */
 class StreamConfigController {
+	use ParsesJsonRequest;
 
 	/**
 	 * Retrieve stream configuration.
@@ -117,9 +119,10 @@ class StreamConfigController {
 	 */
 	public function update_provider( WP_REST_Request $request ) {
 		try {
-			$data = json_decode( $request->get_body(), true );
+			$data = $this->parse_json_request( $request );
 
-			if ( empty( $data ) || ! isset( $data['provider'] ) ) {
+			if ( null === $data || empty( $data ) || ! isset( $data['provider'] ) ) {
+				error_log( '[FCHub Stream] update_provider: Invalid data received. Data: ' . wp_json_encode( $data ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new WP_Error(
 					'invalid_data',
 					__( 'Provider is required.', 'fchub-stream' ),
@@ -141,6 +144,15 @@ class StreamConfigController {
 			$config       = StreamConfig::get();
 			$old_provider = $config['provider'] ?? 'unknown';
 
+			if ( ! is_array( $config ) ) {
+				error_log( '[FCHub Stream] update_provider: Config is not an array. Config: ' . wp_json_encode( $config ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				return new WP_Error(
+					'invalid_config',
+					__( 'Invalid configuration retrieved.', 'fchub-stream' ),
+					array( 'status' => 500 )
+				);
+			}
+
 			// Update provider.
 			$config['provider'] = $provider;
 
@@ -148,6 +160,7 @@ class StreamConfigController {
 			$saved = StreamConfig::save( $config );
 
 			if ( ! $saved ) {
+				error_log( '[FCHub Stream] update_provider: Failed to save config. Config: ' . wp_json_encode( $config ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new WP_Error(
 					'save_failed',
 					__( 'Failed to update provider.', 'fchub-stream' ),
@@ -156,8 +169,13 @@ class StreamConfigController {
 			}
 
 			// Track provider switch in PostHog if provider actually changed.
-			if ( PostHogService::is_initialized() && $old_provider !== $provider ) {
-				PostHogService::track_provider_switched( $old_provider, $provider );
+			try {
+				if ( PostHogService::is_initialized() && $old_provider !== $provider ) {
+					PostHogService::track_provider_switched( $old_provider, $provider );
+				}
+			} catch ( \Exception $e ) {
+				// Don't fail the request if PostHog tracking fails.
+				error_log( '[FCHub Stream] Failed to track provider switch: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 
 			return new WP_REST_Response(

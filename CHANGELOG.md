@@ -4,6 +4,39 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.0.5] - upcoming release
+
+## [0.0.4] - 2025-11-05
+
+### Fixed
+
+**Feed Reload No Longer Shows Encoding Screen When Video is Ready**
+- Fixed feed reloads showing encoding overlay even when video is already ready
+- Frontend now checks if video is ready before polling (no more unnecessary waiting)
+- Videos show player immediately on reload instead of pretending to encode for 10-20 seconds
+
+**Provider Switch Actually Works**
+- Fixed 500 error when switching providers in admin settings (was throwing fatal error like it's 2015)
+- Provider switching now works without crashing the admin panel
+
+**Bunny.net Videos Actually Showing Up**
+- Fixed videos going MIA after posting (was showing "Video player not available" like some kind of tease)
+- Videos now display. Revolutionary? No. Functional? Finally.
+
+### Added
+
+**Bunny.net Stream Ready for Testing**
+- Bunny.net Stream is now enabled. Two providers. That's basically an ecosystem, right?
+- Upload videos → they show up → delete post → video deletes too. It works.
+- Works in posts and comments because why not.
+
+### Notes
+
+**Bunny.net Testing**
+- Bunny.net Stream is ready for testing. Everything works: upload, display, delete.
+- Switch from Cloudflare to Bunny.net in admin settings if you want to test it.
+- Built because two providers > one provider. Math checks out.
+
 ## [0.0.3] - 2025-11-05
 
 ### Fixed
@@ -136,6 +169,8 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.0.5]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.5
+[0.0.4]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.4
 [0.0.3]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.3
 [0.0.2]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.2
 [0.0.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.1

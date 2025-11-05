@@ -165,7 +165,7 @@ class VideoPlayerRenderer {
 					$thumbnail_url = "https://{$customer_subdomain}.cloudflarestream.com/{$video_id}/thumbnails/thumbnail.jpg";
 
 					return sprintf(
-						'<div class="fchub-stream-player-wrapper fchub-stream-encoding" data-video-id="%s" data-provider="cloudflare_stream" style="position: relative; padding-bottom: 56.25%%; height: 0; overflow: hidden; background: #000; margin: 0 !important;">
+						'<div class="fchub-stream-player-wrapper fchub-stream-encoding" data-video-id="%s" data-provider="%s" data-status="%s" style="position: relative; padding-bottom: 56.25%%; height: 0; overflow: hidden; background: #000; margin: 0 !important;">
 							<img src="%s" style="position: absolute; top: 0; left: 0; width: 100%%; height: 100%%; object-fit: cover;" alt="Video thumbnail" />
 							<div style="position: absolute; top: 0; left: 0; width: 100%%; height: 100%%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); color: white; font-size: 18px; font-weight: 500;">
 								<svg style="width: 24px; height: 24px; margin-right: 8px; animation: spin 1s linear infinite;" viewBox="0 0 24 24">
@@ -179,6 +179,8 @@ class VideoPlayerRenderer {
 							</style>
 						</div>',
 						esc_attr( $video_id ),
+						esc_attr( $enabled_provider ),
+						esc_attr( $status ?? 'pending' ),
 						esc_url( $thumbnail_url )
 					);
 				}
@@ -280,7 +282,7 @@ class VideoPlayerRenderer {
 			}
 		} elseif ( 'bunny_stream' === $enabled_provider ) {
 			$config     = StreamConfigService::get_bunny_config();
-			$library_id = $config['stream_library_id'] ?? '';
+			$library_id = $config['library_id'] ?? '';
 
 			if ( $library_id ) {
 				$player_html = sprintf(
