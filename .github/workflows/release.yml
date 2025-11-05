@@ -1,0 +1,92 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create release ZIP
+        run: |
+          # Create temp directory
+          mkdir -p /tmp/fchub-stream
+
+          # Copy all files except .git and .github
+          rsync -av \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='fchub-stream-*.zip' \
+            . /tmp/fchub-stream/
+
+          # Create ZIP
+          cd /tmp
+          zip -r fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip fchub-stream/
+
+          # Move to workspace
+          mv fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip $GITHUB_WORKSPACE/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "CHANGELOG=Initial release" >> $GITHUB_OUTPUT
+          else
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: FCHub Stream v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## FCHub Stream v${{ steps.get_version.outputs.VERSION }}
+
+            Direct video upload plugin for FluentCommunity.
+
+            ### Installation
+
+            1. Download `fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip`
+            2. Upload to WordPress → Plugins → Add New → Upload Plugin
+            3. Activate plugin
+            4. Configure provider credentials in FluentCommunity → FCHub Stream
+
+            ### Requirements
+
+            - WordPress 6.7+
+            - PHP 8.3+
+            - FluentCommunity active
+            - Cloudflare Stream or Bunny.net Stream account
+
+            ### Changes
+
+            ${{ steps.changelog.outputs.CHANGELOG }}
+
+            ---
+
+            **Full Documentation**: [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
+          files: fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
