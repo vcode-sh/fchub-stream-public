@@ -75,30 +75,30 @@ jobs:
           body: |
             ## FCHub Stream v${{ steps.get_version.outputs.VERSION }}
 
-            Direct video upload plugin for FluentCommunity.
+            Video streaming for FluentCommunity. Built because WordPress media library and video don't mix.
 
             ### 📥 Download
 
-            **Versioned**: `fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip`
-            **Latest** (always newest): `fchub-stream.zip`
+            - **Versioned**: `fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip`
+            - **Latest** (always newest): `fchub-stream.zip`
 
-            Both files are identical - use whichever you prefer!
+            Both files identical. Pick one. Works.
 
             ### Installation
 
-            1. Download ZIP file (either one)
-            2. Upload to WordPress → Plugins → Add New → Upload Plugin
-            3. Activate plugin
-            4. Configure provider credentials in FluentCommunity → FCHub Stream
+            1. Download ZIP (either one)
+            2. WordPress Admin → Plugins → Add New → Upload Plugin
+            3. Upload → Install → Activate
+            4. Done. No composer. No npm. Just works.
 
-            **Important**: When you upload a new version, WordPress will **update** the existing plugin automatically (won't create a duplicate).
+            **Updating?** Upload new ZIP. WordPress updates automatically. Won't duplicate.
 
             ### Requirements
 
             - WordPress 6.7+
             - PHP 8.3+
-            - FluentCommunity active
-            - Cloudflare Stream or Bunny.net Stream account
+            - FluentCommunity (must be active)
+            - Cloudflare Stream OR Bunny.net account
 
             ### Changes
 
@@ -106,12 +106,18 @@ jobs:
 
             ---
 
-            **Full Documentation**: [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
+            **Documentation**: https://docs.fchub.co/docs/fchub-stream
 
-            **Always Latest Download Link**:
+            **Part of FCHub Ecosystem**: https://fchub.co
+
+            **Support Development**: https://buymeacoffee.com/vcode
+
+            **Latest Download Link**:
             ```
             https://github.com/${{ github.repository }}/releases/latest/download/fchub-stream.zip
             ```
+
+            Built out of media library trauma. Streams out of necessity.
           files: |
             fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip
             fchub-stream.zip
