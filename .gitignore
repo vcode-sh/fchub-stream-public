@@ -1,0 +1,17 @@
+# WordPress
+.htaccess
+wp-config.php
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Temporary Files
+*.tmp
+*.bak
+*.swp
+*~
