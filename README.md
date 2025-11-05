@@ -2,150 +2,94 @@
 
 Video streaming for FluentCommunity. Built because WordPress media library and video don't mix.
 
-Direct uploads to Cloudflare Stream or Bunny.net. No media library gymnastics. No manual video conversion. Pick your provider. Upload videos. Done.
+Direct uploads to Cloudflare Stream. No media library gymnastics. No manual conversion. Upload. Done.
+
+## ⚠️ Beta Testing - Phase 1
+
+**This is beta software.** We're testing Cloudflare Stream integration only (Phase 1).
+
+Bunny.net support exists but isn't tested yet. Stick to Cloudflare for now.
+
+**Beta Testing Guide**: https://docs.fchub.co/docs/fchub-stream/beta-testing
+
+Found bugs? Shit breaks? That's the point. Report it.
 
 ## What It Does
 
-- **Direct Uploads** - Videos go straight to streaming provider. Zero WordPress media library involvement.
-- **Two Providers** - Cloudflare Stream or Bunny.net. Pick one. Both work.
-- **Drag & Drop** - Upload interface that doesn't make you cry.
-- **Auto Cleanup** - Delete post? Video gets deleted too. Revolutionary? No. Functional? Yes.
+- **Direct Uploads** - Videos to Cloudflare Stream. Zero WordPress media library involvement.
+- **Drag & Drop** - Upload interface that works.
+- **Auto Cleanup** - Delete post? Video deletes too.
+
+Two providers in code (Cloudflare + Bunny.net). Testing Cloudflare first. Bunny.net Phase 2.
 
 ## Part of FCHub Ecosystem
 
-FCHub Stream is an **independent plugin** built for FluentCommunity. Part of the **[FCHub.co](https://fchub.co)** ecosystem:
+Independent plugin for FluentCommunity. Part of **[FCHub.co](https://fchub.co)**:
 
-- **FCHub Stream** (this plugin) - Video streaming. Available now.
-- **FCHub Chat** - Real-time chat for FluentCommunity. Coming soon.
-- **FCHub Mobile** - Unofficial mobile app for FluentCommunity. Coming soon.
-
-All plugins are independent. Install what you need. Ignore the rest.
+- **FCHub Stream** - Video streaming. Beta now.
+- **FCHub Chat** - Real-time chat. Coming soon.
+- **FCHub Mobile** - Unofficial mobile app. Coming soon.
 
 ## Requirements
 
 - WordPress 6.7+
 - PHP 8.3+
-- FluentCommunity (must be active)
-- Cloudflare Stream OR Bunny.net account
+- FluentCommunity (active)
+- Cloudflare Stream account
 
 ## Installation
 
-**Download:**
-- [Latest version](https://github.com/vcode-sh/fchub-stream-public/releases/latest/download/fchub-stream.zip) (always newest)
-- [Specific version](https://github.com/vcode-sh/fchub-stream-public/releases) (if you're picky)
+**Download**: [fchub-stream.zip](https://github.com/vcode-sh/fchub-stream-public/releases/latest/download/fchub-stream.zip)
 
-**Install:**
-1. WordPress Admin → Plugins → Add New → Upload Plugin
-2. Upload ZIP → Install Now → Activate
-3. Done. No composer. No npm. Just works.
+**Install**:
+1. WordPress → Plugins → Upload
+2. Activate
+3. Done. No composer. Just works.
 
-**Updating:**
-Upload new ZIP. WordPress updates the plugin automatically. Won't create duplicates. Promise.
-
-## Setup
-
-### Cloudflare Stream
+## Setup Cloudflare Stream
 
 1. Get [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) account
-2. Grab from dashboard:
+2. Dashboard → grab:
    - Account ID
-   - API Token (needs Stream permissions)
-   - Customer Subdomain (required)
-3. WordPress Admin → FluentCommunity → FCHub Stream → Cloudflare Stream tab
-4. Paste credentials. Save. Works.
+   - API Token (Stream permissions)
+   - Customer Subdomain
+3. WordPress → FluentCommunity → FCHub Stream → Cloudflare tab
+4. Paste. Save. Works.
 
-### Bunny.net Stream
-
-1. Get [Bunny.net](https://bunny.net/stream/) account
-2. Create Video Library
-3. Grab from dashboard:
-   - Library ID
-   - API Key
-4. WordPress Admin → FluentCommunity → FCHub Stream → Bunny.net Stream tab
-5. Paste credentials. Save. Works.
-
-### Configure Limits
-
-WordPress Admin → FluentCommunity → FCHub Stream:
-
-- **Stream Settings**: Pick provider (Cloudflare or Bunny)
-- **Upload Settings**: File size limits, allowed formats, max duration
-
-Set limits that make sense for your community. Default: 1GB max, MP4/MOV/AVI allowed.
+**Don't touch Bunny.net settings.** Phase 2. Not ready.
 
 ## Usage
 
-### For Members
-
-1. FluentCommunity portal → Create post
-2. Click video upload button
-3. Drag & drop video
-4. Wait for upload
-5. Video appears in post
-
-### For Admins
-
-Check upload stats. Adjust limits if needed. That's it.
-
-## Troubleshooting
-
-**Videos won't upload:**
-- Check FluentCommunity is active
-- Verify provider credentials
-- Check file size limits
-- Check browser console for errors
-
-**Videos stuck processing:**
-- Check provider dashboard
-- Large videos take time
-- Provider does encoding. We wait.
-
-**No upload button:**
-- FluentCommunity active?
-- Logged in to portal?
-- Clear browser cache
+Portal → Create post → Video button → Drag video → Upload → Done.
 
 ## Documentation
 
-Full docs: **https://docs.fchub.co/docs/fchub-stream**
+Everything: **https://docs.fchub.co/docs/fchub-stream**
 
-API guides, troubleshooting, video limits explained.
+Beta testing specific: **https://docs.fchub.co/docs/fchub-stream/beta-testing**
 
 ## Support
 
-- **Issues/Features**: [GitHub Issues](https://github.com/vcode-sh/fchub-stream-public/issues)
-- **Questions**: Check [docs](https://docs.fchub.co/docs/fchub-stream) first
+- **Bugs/Issues**: [GitHub Issues](https://github.com/vcode-sh/fchub-stream-public/issues)
+- **Questions**: [Docs](https://docs.fchub.co/docs/fchub-stream) first
 
-## Credits & Donations
+Beta means bugs exist. Report them. We fix them.
 
-Built by [Vibe Code](https://x.com/vcode_sh) because WordPress media library + video = suffering.
+## Credits & Support
 
-**Like this plugin?** Support development:
+Built by [Vibe Code](https://x.com/vcode_sh). Independent dev. Zero corporate funding.
+
+**Support development**:
 - ☕ [Buy me a coffee](https://buymeacoffee.com/vcode)
-- ⭐ Star the repo on [GitHub](https://github.com/vcode-sh/fchub-stream-public)
-- 🐦 Follow [@vcode_sh](https://x.com/vcode_sh) for updates
-
-Independent development. Zero corporate funding. Your support matters.
+- ⭐ [Star on GitHub](https://github.com/vcode-sh/fchub-stream-public)
+- 🐦 [@vcode_sh](https://x.com/vcode_sh)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file
-
-Use it. Modify it. Share it. Credit appreciated.
-
-## Changelog
-
-### 0.0.1 (Beta)
-- Initial release
-- Cloudflare Stream integration
-- Bunny.net Stream integration
-- Direct uploads
-- Auto video cleanup
-- Admin config panel
-- Portal upload interface
+MIT - Use it. Modify it. Credit appreciated.
 
 ---
 
 Built out of media library trauma. Streams out of necessity.
 
-Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that work.
+**Part of [FCHub.co](https://fchub.co)** - FluentCommunity tools that work.
