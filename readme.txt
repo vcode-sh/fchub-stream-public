@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.7
 Requires PHP: 8.3
-Stable tag: 0.0.2
+Stable tag: 0.0.3
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -71,7 +71,15 @@ If your enterprise can handle video streaming built by one dev who hates media l
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
 
-= 0.0.2 - unreleased yet =
+= 0.0.3 - 2025-11-05 =
+* Fixed 401 Unauthorized errors during long video encoding (15+ minutes)
+* Made nonce verification flexible for status checks during long polling
+* Fixed "Already scheduled or no user id" PostHog error
+* Frontend polling now continues after auth errors instead of stopping
+* Improved error handling: stops polling only after 5 consecutive errors
+* Nonce automatically refreshed from window settings on each API call
+
+= 0.0.2 - 2025-11-05 =
 * Fixed browser warning when saving upload settings
 * Fixed race condition in upload settings save flow
 * Fixed false negative error when saving unchanged comment video settings

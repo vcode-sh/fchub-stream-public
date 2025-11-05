@@ -307,6 +307,27 @@ class VideoUploadController {
 
 		// Check permissions - must be logged in user.
 		if ( ! is_user_logged_in() ) {
+			// Capture unauthorized access attempt to Sentry for monitoring.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::set_context(
+						'unauthorized_status_check',
+						array(
+							'video_id' => $video_id,
+							'provider' => $provider,
+							'endpoint' => '/stream/video-status/' . $video_id,
+							'user_id'  => get_current_user_id(),
+						)
+					);
+					SentryService::capture_message(
+						'Status check unauthorized: User not logged in',
+						'warning'
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue - don't break error response if Sentry fails.
+			}
+
 			return new WP_Error(
 				'unauthorized',
 				__( 'You must be logged in to check video status.', 'fchub-stream' ),
@@ -315,13 +336,48 @@ class VideoUploadController {
 		}
 
 		// Verify nonce for CSRF protection.
+		// For status checks during long polling, nonce may expire.
+		// If nonce is invalid but user is logged in, log warning but allow request.
+		// This prevents polling from breaking during long encoding times.
 		$nonce = $request->get_header( 'X-WP-Nonce' );
-		if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-			return new WP_Error(
-				'invalid_nonce',
-				__( 'Invalid security token. Please refresh the page and try again.', 'fchub-stream' ),
-				array( 'status' => 403 )
-			);
+		if ( $nonce && ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+			// Nonce invalid but user is logged in - log warning but allow request.
+			// This handles cases where nonce expires during long polling (15+ minutes).
+			error_log( '[FCHub Stream] Status check: Invalid nonce but user is logged in (ID: ' . get_current_user_id() . '). Allowing request due to long polling.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			
+			// Capture to Sentry for monitoring nonce expiration during long polling.
+			try {
+				if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+					SentryService::set_context(
+						'expired_nonce_status_check',
+						array(
+							'video_id' => $video_id,
+							'provider' => $provider,
+							'user_id'  => get_current_user_id(),
+							'endpoint' => '/stream/video-status/' . $video_id,
+						)
+					);
+					SentryService::add_breadcrumb(
+						'Status check: Invalid nonce during polling',
+						'http',
+						'warning',
+						array(
+							'video_id' => $video_id,
+							'user_id'  => get_current_user_id(),
+						)
+					);
+					SentryService::capture_message(
+						'Status check: Nonce expired during long polling (user logged in)',
+						'warning'
+					);
+				}
+			} catch ( \Exception $e ) {
+				// Silently continue.
+			}
+		} elseif ( ! $nonce ) {
+			// No nonce provided - log warning but allow if user is logged in.
+			// Some frontend implementations may not send nonce for status checks.
+			error_log( '[FCHub Stream] Status check: No nonce provided but user is logged in (ID: ' . get_current_user_id() . '). Allowing request.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
 
 		if ( empty( $video_id ) ) {

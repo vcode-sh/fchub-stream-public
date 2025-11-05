@@ -266,6 +266,13 @@ class PostHogService {
 				$distinct_id_value = self::get_anonymous_id();
 			}
 
+			// Validate distinct ID before sending event.
+			// PostHog requires a valid distinctId, otherwise it throws "Already scheduled or no user id".
+			if ( empty( $distinct_id_value ) ) {
+				error_log( '[FCHub Stream] PostHog: Cannot capture event "' . $event . '" - no distinct ID available. Skipping event.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				return;
+			}
+
 			// Build event data according to PostHog PHP SDK format.
 			// Format: PostHog::capture(array('distinctId' => '...', 'event' => '...', ...properties)).
 			$event_data = array(

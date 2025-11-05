@@ -4,6 +4,36 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.0.3] - 2025-11-05
+
+### Fixed
+
+**Long Polling Authentication Issues**
+- Fixed 401 Unauthorized errors during long video encoding (15+ minutes)
+- Made nonce verification flexible for status checks: invalid nonce no longer blocks polling if user is logged in
+- Status check endpoint now allows requests with expired/invalid nonce during long polling sessions
+- Logs warnings for monitoring instead of blocking requests
+
+**PostHog Analytics Error**
+- Fixed "Already scheduled or no user id" PostHog error during status checks
+- Added validation to ensure `distinctId` exists before sending events to PostHog
+- PostHog events now fail gracefully without breaking video status checks
+
+**Frontend Polling Improvements**
+- Polling now continues after 401/403 errors instead of stopping immediately
+- Frontend automatically refreshes nonce from window settings on each API call
+- Added retry logic: stops polling only after 5 consecutive errors (was stopping on first error)
+- Improved error handling: logs errors but continues polling unless too many failures occur
+- Better error messages for debugging authentication issues
+
+### Notes
+
+**Nonce Expiration During Long Polling**
+- WordPress nonces can expire during long encoding sessions (15+ minutes)
+- Plugin now handles this gracefully by allowing requests with expired nonce if user is still logged in
+- Warnings are logged for monitoring but don't block functionality
+- This ensures videos aren't stuck in "encoding" state when Cloudflare finishes encoding
+
 ## [0.0.2] - 2025-11-05
 
 ### Fixed
@@ -106,5 +136,6 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.0.3]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.3
 [0.0.2]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.2
 [0.0.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.1
