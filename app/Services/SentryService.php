@@ -70,21 +70,21 @@ class SentryService {
 
 			init(
 				array(
-					'dsn'                  => $config['dsn'],
-					'environment'          => self::get_environment(),
-					'release'              => self::get_release(),
-					'traces_sample_rate'   => (float) $traces_sample_rate,
-					'enable_logs'          => true,
-					'before_send'          => array( __CLASS__, 'before_send' ),
-					'before_breadcrumb'    => array( __CLASS__, 'before_breadcrumb' ),
+					'dsn'                   => $config['dsn'],
+					'environment'           => self::get_environment(),
+					'release'               => self::get_release(),
+					'traces_sample_rate'    => (float) $traces_sample_rate,
+					'enable_logs'           => true,
+					'before_send'           => array( __CLASS__, 'before_send' ),
+					'before_breadcrumb'     => array( __CLASS__, 'before_breadcrumb' ),
 					'max_request_body_size' => 'small', // Only capture small request bodies (4KB) for security.
 					'context_lines'         => 3, // Reduce context lines from default 5 to save space.
-					'max_value_length'     => 1024, // Truncate long values (default, but explicit).
-					'in_app_include'       => array(
+					'max_value_length'      => 1024, // Truncate long values (default, but explicit).
+					'in_app_include'        => array(
 						// Mark plugin files as "in app" for better stack trace grouping.
 						'FCHubStream',
 					),
-					'in_app_exclude'       => array(
+					'in_app_exclude'        => array(
 						// Exclude vendor and WordPress core from "in app" stack traces.
 						'vendor',
 						'wp-content',
@@ -94,7 +94,7 @@ class SentryService {
 					// Note: ignore_exceptions only works for exception classes.
 					// WP_Error is not an exception, so it won't be caught here.
 					// If needed, filter WP_Error in before_send callback instead.
-					'send_default_pii'     => false, // Explicitly disable PII (default, but explicit for clarity).
+					'send_default_pii'      => false, // Explicitly disable PII (default, but explicit for clarity).
 				)
 			);
 
@@ -170,7 +170,7 @@ class SentryService {
 		);
 
 		// Get active provider for context.
-		$config = StreamConfig::get();
+		$config   = StreamConfig::get();
 		$provider = $config['provider'] ?? 'unknown';
 		if ( 'cloudflare' === $provider ) {
 			$active_provider = ! empty( $config['cloudflare']['enabled'] ) ? 'cloudflare_stream' : 'none';
@@ -270,7 +270,7 @@ class SentryService {
 			// Scrub from POST data.
 			$data = $request['data'] ?? array();
 			if ( is_array( $data ) ) {
-				$data = self::scrub_sensitive_data( $data );
+				$data            = self::scrub_sensitive_data( $data );
 				$request['data'] = $data;
 			}
 
@@ -278,7 +278,7 @@ class SentryService {
 			if ( isset( $request['query_string'] ) && is_string( $request['query_string'] ) ) {
 				parse_str( $request['query_string'], $query_params );
 				if ( is_array( $query_params ) ) {
-					$query_params = self::scrub_sensitive_data( $query_params );
+					$query_params            = self::scrub_sensitive_data( $query_params );
 					$request['query_string'] = http_build_query( $query_params );
 				}
 			}
@@ -339,9 +339,9 @@ class SentryService {
 	 */
 	public static function before_breadcrumb( \Sentry\Breadcrumb $breadcrumb ): ?\Sentry\Breadcrumb {
 		// Scrub sensitive data from breadcrumb metadata.
-		$metadata = $breadcrumb->getMetadata();
+		$metadata          = $breadcrumb->getMetadata();
 		$scrubbed_metadata = $metadata;
-		
+
 		if ( is_array( $metadata ) && ! empty( $metadata ) ) {
 			$scrubbed_metadata = self::scrub_sensitive_data( $metadata );
 		}
@@ -351,12 +351,12 @@ class SentryService {
 		if ( 'http' === $category ) {
 			// For HTTP breadcrumbs, ensure query strings are scrubbed.
 			if ( isset( $scrubbed_metadata['url'] ) && is_string( $scrubbed_metadata['url'] ) ) {
-				$url_parts = parse_url( $scrubbed_metadata['url'] );
+				$url_parts = wp_parse_url( $scrubbed_metadata['url'] );
 				if ( isset( $url_parts['query'] ) ) {
 					parse_str( $url_parts['query'], $query_params );
 					if ( is_array( $query_params ) ) {
-						$query_params = self::scrub_sensitive_data( $query_params );
-						$url_parts['query'] = http_build_query( $query_params );
+						$query_params             = self::scrub_sensitive_data( $query_params );
+						$url_parts['query']       = http_build_query( $query_params );
 						$scrubbed_metadata['url'] = self::build_url( $url_parts );
 					}
 				}
@@ -591,6 +591,7 @@ class SentryService {
 	 * Test Sentry connection.
 	 *
 	 * Sends a test exception to verify Sentry is working correctly.
+	 * Note: All exceptions are caught internally and returned as error status.
 	 *
 	 * @since 1.0.0
 	 *
@@ -600,6 +601,7 @@ class SentryService {
 	 *     @type string $status  Status (success or error).
 	 *     @type string $message Status message.
 	 * }
+	 * @throws \Exception Test exception (caught internally).
 	 */
 	public static function test_connection(): array {
 		$config = self::get_config();

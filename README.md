@@ -70,6 +70,10 @@ Everything: **https://docs.fchub.co/docs/fchub-stream**
 
 Beta testing specific: **https://docs.fchub.co/docs/fchub-stream/beta-testing**
 
+## Changelog
+
+What's new, what's fixed, what broke: **[CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)**
+
 ## Support
 
 - **Bugs/Issues**: [GitHub Issues](https://github.com/vcode-sh/fchub-stream-public/issues)

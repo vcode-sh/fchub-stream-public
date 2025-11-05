@@ -140,7 +140,7 @@ class ShortcodeProcessor {
 			if ( 'cloudflare_stream' === $enabled_provider ) {
 				$config             = StreamConfigService::get_cloudflare_config();
 				$customer_subdomain = $config['customer_subdomain'] ?? '';
-				
+
 				// Normalize customer_subdomain - extract only subdomain part if full URL is provided.
 				if ( ! empty( $customer_subdomain ) ) {
 					// If contains .cloudflarestream.com, extract just the subdomain part.
@@ -151,7 +151,7 @@ class ShortcodeProcessor {
 					}
 					// Otherwise assume it's already just the subdomain (customer-xxx).
 				}
-				
+
 				if ( $customer_subdomain ) {
 					$thumbnail_url = "https://{$customer_subdomain}.cloudflarestream.com/{$video_id}/thumbnails/thumbnail.jpg";
 				}
@@ -292,20 +292,19 @@ class ShortcodeProcessor {
 							$data['feed']['meta']['media_preview']['html'] = $wrapped_html;
 							error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . ( $data['feed']['id'] ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 						}
-					} else {
+					} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 						// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
-						if ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
-							// HTML contains iframe but status is pending - regenerate with encoding overlay.
-							$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
-							// Wrap with margin fix for consistency.
-							$wrapped_html                                  = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-							$data['feed']['meta']['media_preview']['html'] = $wrapped_html;
-							error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . ( $data['feed']['id'] ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-						}
+						// HTML contains iframe but status is pending - regenerate with encoding overlay.
+						$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
+						// Wrap with margin fix for consistency.
+						$wrapped_html                                  = '<div style="margin: 0 !important;">' . $player_html . '</div>';
+						$data['feed']['meta']['media_preview']['html'] = $wrapped_html;
+						error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . ( $data['feed']['id'] ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
 						// Note: We don't check video_exists() for pending videos because:
-						// 1. Video may exist but not be ready yet (encoding in progress)
-						// 2. API may return 404/500 temporarily during encoding
-						// 3. We trust the status field - if it's pending, show encoding overlay
+						// 1. Video may exist but not be ready yet (encoding in progress).
+						// 2. API may return 404/500 temporarily during encoding.
+						// 3. We trust the status field - if it's pending, show encoding overlay.
 					}
 				}
 			}
@@ -406,20 +405,19 @@ class ShortcodeProcessor {
 											$feed_array['meta']['media_preview']['html'] = $wrapped_html;
 											error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 										}
-									} else {
+									} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 										// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
-										if ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
-											// HTML contains iframe but status is pending - regenerate with encoding overlay.
-											$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
-											// Wrap with margin fix for consistency.
-											$wrapped_html                                = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-											$feed_array['meta']['media_preview']['html'] = $wrapped_html;
-											error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-										}
+										// HTML contains iframe but status is pending - regenerate with encoding overlay.
+										$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
+										// Wrap with margin fix for consistency.
+										$wrapped_html                                = '<div style="margin: 0 !important;">' . $player_html . '</div>';
+										$feed_array['meta']['media_preview']['html'] = $wrapped_html;
+										error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
 										// Note: We don't check video_exists() for pending videos because:
-										// 1. Video may exist but not be ready yet (encoding in progress)
-										// 2. API may return 404/500 temporarily during encoding
-										// 3. We trust the status field - if it's pending, show encoding overlay
+										// 1. Video may exist but not be ready yet (encoding in progress).
+										// 2. API may return 404/500 temporarily during encoding.
+										// 3. We trust the status field - if it's pending, show encoding overlay.
 									}
 								}
 							}
@@ -462,22 +460,21 @@ class ShortcodeProcessor {
 										error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 										$modified = true;
 									}
-								} else {
+								} elseif ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
 									// If status is not 'ready', ensure HTML shows encoding overlay (not iframe).
-									if ( strpos( $html, '<iframe' ) !== false && strpos( $html, 'fchub-stream-encoding' ) === false ) {
-										// HTML contains iframe but status is pending - regenerate with encoding overlay.
-										$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
-										// Wrap with margin fix for consistency.
-										$wrapped_html                                        = '<div style="margin: 0 !important;">' . $player_html . '</div>';
-										$feeds_data[ $key ]['meta']['media_preview']['html'] = $wrapped_html;
-										$feed_id = $feed['id'] ?? 'unknown';
-										error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-										$modified = true;
-									}
+									// HTML contains iframe but status is pending - regenerate with encoding overlay.
+									$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'pending' );
+									// Wrap with margin fix for consistency.
+									$wrapped_html                                        = '<div style="margin: 0 !important;">' . $player_html . '</div>';
+									$feeds_data[ $key ]['meta']['media_preview']['html'] = $wrapped_html;
+									$feed_id = $feed['id'] ?? 'unknown';
+									error_log( '[FCHub Stream] Updated media_preview HTML for pending video (removed iframe) in post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+									$modified = true;
+
 									// Note: We don't check video_exists() for pending videos because:
-									// 1. Video may exist but not be ready yet (encoding in progress)
-									// 2. API may return 404/500 temporarily during encoding
-									// 3. We trust the status field - if it's pending, show encoding overlay
+									// 1. Video may exist but not be ready yet (encoding in progress).
+									// 2. API may return 404/500 temporarily during encoding.
+									// 3. We trust the status field - if it's pending, show encoding overlay.
 								}
 							}
 						}

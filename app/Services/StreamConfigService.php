@@ -53,8 +53,8 @@ class StreamConfigService {
 
 		// Mask Sentry DSN (show only last 20 chars for debugging).
 		if ( ! empty( $config['sentry']['dsn'] ) ) {
-			$dsn                        = $config['sentry']['dsn'];
-			$visible_chars              = 20;
+			$dsn                         = $config['sentry']['dsn'];
+			$visible_chars               = 20;
 			$config['sentry']['has_dsn'] = true;
 
 			if ( strlen( $dsn ) > $visible_chars ) {

@@ -321,14 +321,14 @@ class VideoUploadController {
 
 		if ( is_wp_error( $result ) ) {
 			// If Cloudflare returns 500/404, video might not be ready yet - return pending status instead of error
-			// This allows frontend to continue polling
+			// This allows frontend to continue polling.
 			$error_code  = $result->get_error_code();
 			$error_data  = $result->get_error_data();
 			$status_code = $error_data['status'] ?? 0;
 
 			error_log( '[FCHub Stream] Video status check failed - video_id: ' . $video_id . ', provider: ' . $provider . ', error_code: ' . $error_code . ', status_code: ' . $status_code ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-			// For 404/500 errors, treat as pending (video may not be ready yet)
+			// For 404/500 errors, treat as pending (video may not be ready yet).
 			if ( in_array( $status_code, array( 404, 500 ), true ) ) {
 				error_log( '[FCHub Stream] Treating error as pending status (video may still be encoding)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new WP_REST_Response(
@@ -578,8 +578,11 @@ class VideoUploadController {
 	private function verify_webhook_signature( WP_REST_Request $request, $provider ) {
 		// For Cloudflare Stream.
 		if ( 'cloudflare_stream' === $provider ) {
-			// Try both uppercase and lowercase header names (WordPress REST API may normalize headers)
-			$signature = $request->get_header( 'webhook-signature' ) ?: $request->get_header( 'Webhook-Signature' );
+			// Try both uppercase and lowercase header names (WordPress REST API may normalize headers).
+			$signature = $request->get_header( 'webhook-signature' );
+			if ( ! $signature ) {
+				$signature = $request->get_header( 'Webhook-Signature' );
+			}
 
 			if ( empty( $signature ) ) {
 				error_log( '[FCHub Stream] Webhook signature missing. Headers: ' . wp_json_encode( $request->get_headers() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -593,7 +596,7 @@ class VideoUploadController {
 			error_log( '[FCHub Stream] Webhook signature found: ' . substr( $signature, 0, 50 ) . '...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 			// Parse signature: time=1230811200,sig1=60493ec9388b44585a29543bcf0de62e....
-			// According to Cloudflare docs: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/
+			// According to Cloudflare docs: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/.
 			$parts = array();
 			foreach ( explode( ',', $signature ) as $part ) {
 				list( $key, $value ) = explode( '=', $part, 2 );
@@ -613,7 +616,7 @@ class VideoUploadController {
 			$sig_hash  = $parts['sig1'];
 
 			// Verify timestamp (prevent replay attacks - allow 5 minutes).
-			// Cloudflare docs recommend discarding requests with timestamps that are too old
+			// Cloudflare docs recommend discarding requests with timestamps that are too old.
 			if ( abs( time() - $timestamp ) > 300 ) {
 				error_log( '[FCHub Stream] Webhook signature expired. Timestamp: ' . $timestamp . ', Current: ' . time() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new WP_Error(
@@ -639,12 +642,12 @@ class VideoUploadController {
 			// Verify signature according to Cloudflare docs:
 			// 1. Create signature source string: timestamp + '.' + body
 			// 2. Compute HMAC-SHA256 using secret and source string
-			// 3. Compare signatures using constant-time comparison
+			// 3. Compare signatures using constant-time comparison.
 			$body          = $request->get_body();
 			$source_string = $timestamp . '.' . $body;
 			$expected_sig  = hash_hmac( 'sha256', $source_string, $secret );
 
-			// Use constant-time comparison to prevent timing attacks
+			// Use constant-time comparison to prevent timing attacks.
 			if ( ! hash_equals( $expected_sig, $sig_hash ) ) {
 				error_log( '[FCHub Stream] Signature verification failed. Expected: ' . substr( $expected_sig, 0, 20 ) . '..., Received: ' . substr( $sig_hash, 0, 20 ) . '...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new WP_Error(
@@ -692,10 +695,10 @@ class VideoUploadController {
 			);
 		}
 
-		// Handle error state - according to Cloudflare docs, status.state can be 'error'
+		// Handle error state - according to Cloudflare docs, status.state can be 'error'.
 		if ( 'error' === $status_state ) {
 			error_log( '[FCHub Stream] Video encoding failed - video_id: ' . $video_uid . ', error_code: ' . $err_reason_code . ', error_text: ' . $err_reason_text ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			// Update posts/comments with failed status
+			// Update posts/comments with failed status.
 			$this->update_video_status_in_db( $video_uid, 'failed', null, $err_reason_code, $err_reason_text );
 			return new WP_REST_Response(
 				array(
@@ -741,7 +744,7 @@ class VideoUploadController {
 				$this->update_video_status_in_db( $video_uid, 'ready', $video_uid );
 			} else {
 				error_log( '[FCHub Stream] Video readyToStream=true but no playback URLs yet - keeping as pending' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				// Don't update status - video not fully ready yet
+				// Don't update status - video not fully ready yet.
 			}
 		}
 

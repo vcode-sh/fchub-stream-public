@@ -11,8 +11,10 @@ CLAUDE.md
 VOICE-TONE.md
 RELEASE.md
 RELEASE-CHECKLIST.md
+RELEASE-GUIDE.md
 README-PUBLIC.md
 build-release.sh
+sync-to-public.sh
 knowledgebase/
 todo/
 beta-test/

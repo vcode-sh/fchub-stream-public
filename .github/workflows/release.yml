@@ -53,16 +53,33 @@ jobs:
           mv fchub-stream-${{ steps.get_version.outputs.VERSION }}.zip $GITHUB_WORKSPACE/
           mv fchub-stream.zip $GITHUB_WORKSPACE/
 
-      - name: Generate changelog
+      - name: Extract changelog from CHANGELOG.md
         id: changelog
         run: |
-          # Get previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
 
-          if [ -z "$PREV_TAG" ]; then
-            echo "CHANGELOG=Initial release" >> $GITHUB_OUTPUT
+          # Check if CHANGELOG.md exists
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "CHANGELOG=No changelog found. Built anyway. Check repo for details." >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Extract changelog for this version from CHANGELOG.md
+          # Looks for ## [VERSION] section and extracts until next ## [ or end of file
+          CHANGELOG=$(awk -v version="$VERSION" '
+            /^## \[/ {
+              if (found) exit;
+              if ($0 ~ "\\[" version "\\]") found=1;
+              next;
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          # If no version-specific changelog found, use fallback
+          if [ -z "$CHANGELOG" ]; then
+            echo "CHANGELOG=Version $VERSION released. Check [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details." >> $GITHUB_OUTPUT
           else
-            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+            # Save changelog to output
             echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
             echo "$CHANGELOG" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
