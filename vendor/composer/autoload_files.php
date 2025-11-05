@@ -11,4 +11,5 @@ return array(
     '37a3dc5111fe8f707ab4c132ef1dbc62' => $vendorDir . '/guzzlehttp/guzzle/src/functions_include.php',
     '3109cb1a231dcd04bee1f9f620d46975' => $vendorDir . '/paragonie/sodium_compat/autoload.php',
     'fb4ca2d97fe7ba6af750497425204e70' => $vendorDir . '/sentry/sentry/src/functions.php',
+    'f6d4f6bcee7247df6b777884c3e22f98' => $vendorDir . '/yahnis-elsts/plugin-update-checker/load-v5p6.php',
 );

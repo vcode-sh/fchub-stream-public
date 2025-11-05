@@ -62,6 +62,18 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__ . '/vendor/autoload.php';
 }
 
+// Initialize Plugin Update Checker for GitHub releases.
+if ( class_exists( 'YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
+	$update_checker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		'https://github.com/vcode-sh/fchub-stream-public',
+		__FILE__,
+		'fchub-stream'
+	);
+
+	// Enable release assets to use the ZIP files from GitHub releases.
+	$update_checker->getVcsApi()->enableReleaseAssets();
+}
+
 /**
  * Bootstrap the plugin.
  *
