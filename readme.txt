@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.7
 Requires PHP: 8.3
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -70,6 +70,9 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.1.1 - 2025-11-06 =
+* Stopped spamming Sentry with expected Cloudflare encoding progress (pctComplete < 100% is normal, not an error. We were being dramatic.)
 
 = 0.1.0 - 2025-11-05 =
 * Fixed videos showing "not found" after encoding finished

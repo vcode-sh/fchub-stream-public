@@ -1115,33 +1115,38 @@ class VideoUploadController {
 					// Silently continue.
 				}
 			} else {
-				// Log warning and track in Sentry - video may not be fully ready yet.
+				// Video not fully ready yet - this is expected during encoding.
+				// Cloudflare sends webhooks with readyToStream=true when at least one quality level is ready,
+				// but pctComplete may still be < 100%. We wait for pctComplete=100% before marking as ready.
 				$reason = ! $has_playback ? 'no playback URLs' : 'pctComplete=' . $pct_complete . '% (< 100%)';
-				$warning_msg = 'Video readyToStream=true but not fully encoded (' . $reason . ') - keeping as pending. Video ID: ' . $video_uid;
+				
+				// Only log locally (not to Sentry) - this is expected behavior during encoding.
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-					error_log( '[FCHub Stream] ' . $warning_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log( '[FCHub Stream] Video readyToStream=true but not fully encoded (' . $reason . ') - keeping as pending. Video ID: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				}
 
-				// Track in Sentry for monitoring.
-				try {
-					if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
-						SentryService::capture_message(
-							$warning_msg,
-							'warning',
-							array(
-								'context' => array(
-									'component'        => 'webhook',
-									'provider'         => 'cloudflare',
-									'video_id'         => $video_uid,
-									'ready_to_stream'  => $ready_to_stream,
-									'has_playback_hls' => $has_playback,
-									'pct_complete'     => $pct_complete,
-								),
-							)
-						);
+				// Only track in Sentry if there's a real problem (missing playback URLs).
+				// Don't log expected pctComplete < 100% cases - Cloudflare will send another webhook when encoding completes.
+				if ( ! $has_playback ) {
+					try {
+						if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+							SentryService::capture_message(
+								'Video readyToStream=true but missing playback URLs - keeping as pending. Video ID: ' . $video_uid,
+								'warning',
+								array(
+									'context' => array(
+										'component'       => 'webhook',
+										'provider'        => 'cloudflare',
+										'video_id'        => $video_uid,
+										'ready_to_stream' => $ready_to_stream,
+										'pct_complete'    => $pct_complete,
+									),
+								)
+							);
+						}
+					} catch ( \Exception $e ) {
+						// Silently continue.
 					}
-				} catch ( \Exception $e ) {
-					// Silently continue.
 				}
 				// Don't update status - video not fully ready yet.
 				// Cloudflare will send another webhook when pctComplete reaches 100.

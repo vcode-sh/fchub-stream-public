@@ -4,6 +4,11 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.1.1] - 2025-11-06
+
+### Fixed
+- Stopped spamming Sentry with expected Cloudflare encoding progress (pctComplete < 100% is normal, not an error. We were being dramatic.)
+
 ## [0.1.0] - 2025-11-05
 
 ### Fixed

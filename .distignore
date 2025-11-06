@@ -66,6 +66,7 @@ phpcs.xml
 .claude/
 *.sublime-project
 *.sublime-workspace
+.mcp.json
 
 # OS Files
 .DS_Store
