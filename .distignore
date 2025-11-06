@@ -14,7 +14,9 @@ RELEASE-CHECKLIST.md
 RELEASE-GUIDE.md
 README-PUBLIC.md
 version-update.md
+release-process.md
 BUGFIX-ENCODING-404.md
+WORDPRESS-ZIP-INFO.md
 build-release.sh
 sync-to-public.sh
 knowledgebase/

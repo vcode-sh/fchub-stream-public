@@ -4,9 +4,31 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.2.0] - 2025-11-06
+
+### Added
+
+**Floating Video Player (Picture-in-Picture for People Who Scroll)**
+- Playing video follows you when you scroll past it. Like YouTube but WordPress.
+- Only one video plays at a time (starting second video auto-pauses first one. Revolutionary crowd control.)
+- Close button actually works. Stops video too. No phantom floating players haunting your feed.
+- **Drag & drop** - Grab the top bar (you'll see it), drag anywhere. Your video, your corner, your rules.
+- **Resize from corners** - 4 invisible corner handles (16px). Drag any corner to resize. Always maintains 16:9 aspect ratio. Can't escape viewport boundaries.
+- **Persistent memory** - Position and size saved to localStorage. Scroll away, scroll back, video reappears exactly where you put it.
+- Built because watching 3 seconds of video then scrolling away is basically content consumption in 2025.
+
+### Fixed
+
+**Video Controls Actually Visible Now**
+- Fixed videos appearing zoomed in with play/pause buttons cut off
+- Was extending video 40px beyond container. FluentCommunity's overflow:hidden said no.
+- Built because seeing half a play button isn't minimalist design. It's broken.
+
 ## [0.1.1] - 2025-11-06
 
 ### Fixed
+
+**Sentry Spam Reduction**
 - Stopped spamming Sentry with expected Cloudflare encoding progress (pctComplete < 100% is normal, not an error. We were being dramatic.)
 
 ## [0.1.0] - 2025-11-05
@@ -227,6 +249,8 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.2.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.2.0
+[0.1.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.1.1
 [0.1.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.1.0
 [0.0.5]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.5
 [0.0.4]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.0.4

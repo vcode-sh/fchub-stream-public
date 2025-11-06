@@ -1003,7 +1003,7 @@ class VideoUploadController {
 			// Track encoding failure in PostHog (safely).
 			try {
 				if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
-					$provider = 'cloudflare'; // This is Cloudflare webhook.
+					$provider = 'cloudflare_stream'; // Cloudflare webhook - use tracking name with suffix.
 					PostHogService::track_encoding_failed(
 						$video_uid,
 						$provider,
@@ -1076,7 +1076,7 @@ class VideoUploadController {
 						$upload_timestamp = get_transient( 'fchub_stream_upload_time_' . $video_uid );
 						if ( $upload_timestamp ) {
 							$encoding_time = time() - $upload_timestamp;
-							$provider      = 'cloudflare'; // This is Cloudflare webhook.
+							$provider      = 'cloudflare_stream'; // Cloudflare webhook - use tracking name with suffix.
 
 							// Get video metadata from webhook payload if available.
 							$file_size_mb = 0;
@@ -1201,7 +1201,7 @@ class VideoUploadController {
 		if ( 5 === $status ) {
 			try {
 				if ( class_exists( 'FCHubStream\App\Services\PostHogService' ) && PostHogService::is_initialized() ) {
-					$provider      = 'bunny'; // This is Bunny webhook.
+					$provider      = 'bunny_stream'; // Bunny webhook - use tracking name with suffix.
 					$error_code    = $data['error'] ?? 'unknown';
 					$error_message = $data['error_message'] ?? 'Encoding failed';
 
@@ -1225,7 +1225,7 @@ class VideoUploadController {
 					$upload_timestamp = get_transient( 'fchub_stream_upload_time_' . $video_guid );
 					if ( $upload_timestamp ) {
 						$encoding_time = time() - $upload_timestamp;
-						$provider      = 'bunny'; // This is Bunny webhook.
+						$provider      = 'bunny_stream'; // Bunny webhook - use tracking name with suffix.
 
 						// Get video metadata from webhook payload if available.
 						$file_size_mb = 0;
