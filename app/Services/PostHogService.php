@@ -274,14 +274,12 @@ class PostHogService {
 			}
 
 			// Build event data according to PostHog PHP SDK format.
-			// Format: PostHog::capture(array('distinctId' => '...', 'event' => '...', ...properties)).
+			// Format: PostHog::capture(array('distinctId' => '...', 'event' => '...', 'properties' => array(...))).
 			$event_data = array(
 				'distinctId' => $distinct_id_value,
 				'event'      => $event,
+				'properties' => $properties,
 			);
-
-			// Merge properties into event data (PostHog expects properties at top level).
-			$event_data = array_merge( $event_data, $properties );
 
 			// Debug: Log event being sent (only in debug mode).
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
@@ -714,15 +712,17 @@ class PostHogService {
 	 * @return void
 	 */
 	public static function track_status_check( string $video_id, string $provider, string $status, array $context = array() ): void {
-		// Normalize provider (remove _stream suffix if present).
-		$provider_normalized = str_replace( '_stream', '', $provider );
+		// Normalize provider (add _stream suffix if not present for consistency).
+		if ( ! str_ends_with( $provider, '_stream' ) ) {
+			$provider = $provider . '_stream';
+		}
 
 		self::capture_event(
 			'video_status_check',
 			array_merge(
 				array(
 					'video_id'                => $video_id,
-					'provider'                => $provider_normalized,
+					'provider'                => $provider,
 					'status'                  => $status,
 					'$process_person_profile' => false,
 				),
@@ -744,6 +744,14 @@ class PostHogService {
 	 * @return void
 	 */
 	public static function track_provider_switched( string $old_provider, string $new_provider ): void {
+		// Normalize providers (add _stream suffix if not present for consistency).
+		if ( ! str_ends_with( $old_provider, '_stream' ) ) {
+			$old_provider = $old_provider . '_stream';
+		}
+		if ( ! str_ends_with( $new_provider, '_stream' ) ) {
+			$new_provider = $new_provider . '_stream';
+		}
+
 		self::capture_event(
 			'provider_switched',
 			array(
@@ -768,6 +776,11 @@ class PostHogService {
 	 * @return void
 	 */
 	public static function track_provider_config( string $provider, bool $success, string $error = '' ): void {
+		// Normalize provider (add _stream suffix if not present for consistency).
+		if ( ! str_ends_with( $provider, '_stream' ) ) {
+			$provider = $provider . '_stream';
+		}
+
 		self::capture_event(
 			'provider_config',
 			array(

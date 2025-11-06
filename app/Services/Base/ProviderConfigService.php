@@ -216,6 +216,9 @@ abstract class ProviderConfigService {
 
 		error_log( '[FCHub Stream] ProviderConfigService::save() - provider: ' . $provider . ', incoming fields: ' . implode( ', ', array_keys( $provider_data ) ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
+		// Store old enabled state BEFORE processing fields (for PostHog tracking).
+		$was_enabled = ! empty( $current_config[ $provider ]['enabled'] );
+
 		// Process all fields from provider_data.
 		foreach ( $provider_data as $field => $value ) {
 			// Skip encryption for encrypted fields (handle separately).
@@ -260,8 +263,8 @@ abstract class ProviderConfigService {
 
 		// Track provider configuration in PostHog.
 		if ( \FCHubStream\App\Services\PostHogService::is_initialized() ) {
-			$was_enabled = ! empty( $current_config[ $provider ]['enabled'] );
-			$is_enabled  = isset( $provider_data['enabled'] ) ? (bool) $provider_data['enabled'] : $was_enabled;
+			// Get new enabled state (after save).
+			$is_enabled = ! empty( $current_config[ $provider ]['enabled'] );
 
 			if ( $is_enabled && ! $was_enabled ) {
 				// Provider was just enabled.

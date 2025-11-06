@@ -297,8 +297,8 @@ class VideoUploadService {
 						// Ensure format is not empty (use 'unknown' if empty).
 						$format_value = ! empty( $extension ) ? $extension : 'unknown';
 
-						// Ensure provider is not empty (should be 'cloudflare' or 'bunny').
-						$provider_value = ! empty( $provider ) ? $provider : 'unknown';
+						// Map internal provider name to tracking name with _stream suffix for consistency.
+						$provider_value = ! empty( $provider ) ? $provider . '_stream' : 'unknown';
 
 						PostHogService::track_video_upload_failed(
 							$error_code,
@@ -352,8 +352,8 @@ class VideoUploadService {
 					// Ensure format is not empty (use 'unknown' if empty).
 					$format_value = ! empty( $extension ) ? $extension : 'unknown';
 
-					// Ensure provider is not empty (should be 'cloudflare' or 'bunny').
-					$provider_value = ! empty( $provider ) ? $provider : 'unknown';
+					// Map internal provider name to tracking name with _stream suffix for consistency.
+					$provider_value = ! empty( $provider ) ? $provider . '_stream' : 'unknown';
 
 					PostHogService::track_video_upload(
 						array(
@@ -368,7 +368,7 @@ class VideoUploadService {
 					// Track upload time performance.
 					PostHogService::track_upload_time(
 						$total_upload_time,
-						$provider_value,
+						$provider_value, // Already has _stream suffix from above.
 						array(
 							'file_size_mb'      => $file_size_mb,
 							'format'            => $format_value,

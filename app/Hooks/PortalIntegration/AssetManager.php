@@ -96,10 +96,12 @@ class AssetManager {
 					overflow: hidden !important; /* Clip video to rounded corners */
 				}
 
-				/* CRITICAL FIX: Reset negative margins for YouTube oembed - FluentCommunity already has its own negative margins */
-				/* Without this, YouTube videos get double negative margins (ours + FluentCommunity) and overflow by ~78px */
+				/* CRITICAL FIX: Reset negative margins for YouTube oembed and our video iframes - FluentCommunity already has its own negative margins */
+				/* Without this, YouTube videos and our videos get double negative margins (ours + FluentCommunity) and overflow by ~78px */
 				.fcom_top_media .feed_media_oembed,
-				.fcom_top_media .feed_media.feed_media_oembed {
+				.fcom_top_media .feed_media.feed_media_oembed,
+				.fcom_top_media .feed_media_iframe_html,
+				.fcom_top_media .feed_media.feed_media_iframe_html {
 					margin-left: 0 !important;
 					margin-right: 0 !important;
 					margin-top: 0 !important;

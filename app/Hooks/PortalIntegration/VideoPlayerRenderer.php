@@ -274,7 +274,7 @@ class VideoPlayerRenderer {
 				$player_html = sprintf(
 					'<div class="fchub-stream-player-wrapper" data-video-id="%s" data-provider="cloudflare_stream" style="position: relative; padding-bottom: 56.25%%; height: 0; overflow: hidden; margin: 0 !important;">
 						<iframe
-							src="https://%s.cloudflarestream.com/%s/iframe"
+							src="https://%s.cloudflarestream.com/%s/iframe?postMessage=true"
 							style="position: absolute; top: 0; left: 0; width: 100%%; height: 100%%; border: 0;"
 							allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
 							allowfullscreen="true">

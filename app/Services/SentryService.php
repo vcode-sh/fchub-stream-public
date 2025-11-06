@@ -267,6 +267,7 @@ class SentryService {
 	 * Filters and scrubs sensitive data before sending to Sentry.
 	 * Removes API keys, tokens, passwords, DSN, and other credentials.
 	 * Also scrubs stack locals (local variables in stack trace) and HTTP context.
+	 * Only captures errors that originate from fchub-stream plugin code.
 	 *
 	 * @since 1.0.0
 	 *
@@ -276,6 +277,39 @@ class SentryService {
 	 * @return \Sentry\Event|null Event to send, or null to discard.
 	 */
 	public static function before_send( \Sentry\Event $event, ?\Sentry\EventHint $hint = null ): ?\Sentry\Event {
+		// Only capture errors that originate from fchub-stream plugin.
+		// Check if at least one frame in stacktrace is from our plugin directory.
+		$is_our_error = false;
+		$exceptions   = $event->getExceptions();
+
+		if ( ! empty( $exceptions ) ) {
+			foreach ( $exceptions as $exception ) {
+				if ( $is_our_error ) {
+					break; // Already found our error, exit loop.
+				}
+
+				$stacktrace = $exception->getStacktrace();
+				if ( $stacktrace ) {
+					$frames = $stacktrace->getFrames();
+					if ( ! empty( $frames ) ) {
+						foreach ( $frames as $frame ) {
+							$filename = $frame->getFile();
+							if ( $filename && strpos( $filename, 'fchub-stream' ) !== false ) {
+								// Found a frame from our plugin - this is our error.
+								$is_our_error = true;
+								break; // Exit inner loop.
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// If error doesn't originate from our plugin, discard it.
+		if ( ! $is_our_error ) {
+			return null;
+		}
+
 		// Scrub sensitive data from request data.
 		$request = $event->getRequest();
 		if ( $request ) {
