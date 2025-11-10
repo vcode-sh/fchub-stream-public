@@ -37,6 +37,34 @@ return function ( $file ) {
 		require_once __DIR__ . '/../vendor/autoload.php';
 	}
 
+	// Fix SDK symlink if relative symlink doesn't work (common in Docker environments)
+	if ( defined( 'FCHUB_STREAM_DIR' ) && ! class_exists( 'FCHub\License\License_Manager' ) ) {
+		$sdk_symlink = FCHUB_STREAM_DIR . 'vendor/fchub/license-sdks-php';
+		
+		// Check if symlink exists but points to wrong location
+		if ( is_link( $sdk_symlink ) ) {
+			$current_target = readlink( $sdk_symlink );
+			$sdk_file = $sdk_symlink . '/src/License_Manager.php';
+			
+			// If relative symlink doesn't resolve, try to fix it
+			if ( ! file_exists( $sdk_file ) ) {
+				// Try Docker path first
+				$docker_target = '/var/www/html/fchub-licenses-sdks/packages/php';
+				if ( file_exists( $docker_target . '/src/License_Manager.php' ) ) {
+					@unlink( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					@symlink( $docker_target, $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				} else {
+					// Try to resolve relative path
+					$resolved_path = realpath( dirname( $sdk_symlink ) . '/' . $current_target );
+					if ( $resolved_path && file_exists( $resolved_path . '/src/License_Manager.php' ) ) {
+						@unlink( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+						@symlink( $resolved_path, $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					}
+				}
+			}
+		}
+	}
+
 	/**
 	 * Initialize Sentry error monitoring EARLY.
 	 *
@@ -76,6 +104,18 @@ return function ( $file ) {
 	}
 
 	/**
+	 * Initialize Tamper Detection EARLY.
+	 *
+	 * Initialize tamper detection as early as possible to monitor file integrity
+	 * and detect bypass attempts. Safe to call even if license is not active.
+	 *
+	 * @since 1.0.0
+	 */
+	if ( class_exists( 'FCHubStream\App\Services\TamperDetection' ) ) {
+		\FCHubStream\App\Services\TamperDetection::init();
+	}
+
+	/**
 	 * Register video deletion hooks EARLY (before portal loads).
 	 *
 	 * CRITICAL: These hooks must be registered immediately because they can be
@@ -110,6 +150,14 @@ return function ( $file ) {
 				);
 
 				error_log( '[FCHub Stream] Video deletion hooks registered early (plugins_loaded)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+
+			// CRITICAL: Register portal vars hook EARLY (before portal_loaded).
+			// Hook fluent_community/portal_vars may be called BEFORE fluent_community/portal_loaded,
+			// so we must register it early to ensure SDK/license are checked correctly.
+			if ( class_exists( 'FCHubStream\App\Hooks\PortalIntegration\ConfigProvider' ) ) {
+				$config_provider = new \FCHubStream\App\Hooks\PortalIntegration\ConfigProvider();
+				$config_provider->register();
 			}
 		},
 		20 // Priority 20 to ensure FluentCommunity classes are loaded.

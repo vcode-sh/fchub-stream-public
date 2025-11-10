@@ -18,6 +18,8 @@ use WP_Error;
 use FCHubStream\App\Services\VideoUploadService;
 use FCHubStream\App\Services\SentryService;
 use FCHubStream\App\Services\PostHogService;
+use FCHubStream\App\Services\StreamLicenseManager;
+use FCHubStream\App\Services\TamperDetection;
 
 /**
  * Video Upload Controller class.
@@ -89,6 +91,72 @@ class VideoUploadController {
 				__( 'You must be logged in to upload videos.', 'fchub-stream' ),
 				array( 'status' => 401 )
 			);
+		}
+
+		// SECURITY LAYER 2: Check license before processing upload request.
+		if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
+			// Check file integrity before license check
+			if ( class_exists( 'FCHubStream\App\Services\TamperDetection' ) ) {
+				TamperDetection::check_file_integrity( 'upload' );
+			}
+
+			$license = new StreamLicenseManager();
+			if ( ! $license->can_upload_video() ) {
+				// License not active or feature not enabled
+				// Safely add Sentry breadcrumb (don't break upload if Sentry fails).
+				try {
+					if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+						SentryService::add_breadcrumb(
+							'Upload rejected: License not active',
+							'http',
+							'warning',
+							array(
+								'user_id'      => get_current_user_id(),
+								'license_active' => $license->is_active(),
+							)
+						);
+					}
+				} catch ( \Exception $e ) {
+					// Silently continue.
+				}
+
+				error_log( '[FCHub Stream] Upload rejected: License not active or video upload not enabled' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				return new WP_Error(
+					'license_required',
+					__( 'Active FCHub Stream license required for video uploads.', 'fchub-stream' ),
+					array( 'status' => 403 )
+				);
+			}
+
+			// Additional validation: check if license is still valid (not expired)
+			$validation_result = $license->validate_license();
+			if ( is_wp_error( $validation_result ) ) {
+				error_log( '[FCHub Stream] License validation failed during upload: ' . $validation_result->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+				// Safely add Sentry breadcrumb (don't break upload if Sentry fails).
+				try {
+					if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
+						SentryService::add_breadcrumb(
+							'Upload rejected: License expired or invalid',
+							'http',
+							'warning',
+							array(
+								'user_id'      => get_current_user_id(),
+								'error_code'   => $validation_result->get_error_code(),
+								'error_message' => $validation_result->get_error_message(),
+							)
+						);
+					}
+				} catch ( \Exception $e ) {
+					// Silently continue.
+				}
+
+				return new WP_Error(
+					'license_expired',
+					__( 'Your FCHub Stream license has expired. Please renew your subscription to continue uploading videos.', 'fchub-stream' ),
+					array( 'status' => 403 )
+				);
+			}
 		}
 
 		// Verify nonce for CSRF protection.

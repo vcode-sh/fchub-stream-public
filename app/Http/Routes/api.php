@@ -17,6 +17,7 @@ use FCHubStream\App\Http\Controllers\UploadSettingsController;
 use FCHubStream\App\Http\Controllers\CommentVideoSettingsController;
 use FCHubStream\App\Http\Controllers\SentryConfigController;
 use FCHubStream\App\Http\Controllers\PostHogConfigController;
+use FCHubStream\App\Http\Controllers\LicenseController;
 
 /**
  * Stream Configuration Routes.
@@ -65,6 +66,12 @@ $router->group(
 		// PostHog event tracking (available for both portal and admin - requires user to be logged in).
 		// Note: Permission check is done in controller to handle both PortalPolicy and AdminPolicy scenarios.
 		$router->post( 'track-event', array( VideoUploadController::class, 'track_event' ) );
+
+		// License management (Admin endpoint).
+		$router->get( 'license/status', array( LicenseController::class, 'get_status' ) );
+		$router->post( 'license/activate', array( LicenseController::class, 'activate' ) );
+		$router->post( 'license/validate', array( LicenseController::class, 'validate' ) );
+		$router->post( 'license/deactivate', array( LicenseController::class, 'deactivate' ) );
 	}
 );
 

@@ -101,13 +101,17 @@ class PortalIntegration {
 	 * Delegates hook registration to specialized classes.
 	 * Each class registers its own WordPress filters and actions.
 	 *
+	 * NOTE: ConfigProvider is also registered early in boot/app.php (plugins_loaded)
+	 * to ensure portal_vars hook is available before portal_loaded fires.
+	 * ConfigProvider::register() checks for duplicates, so it's safe to call here too.
+	 *
 	 * @since 1.0.0
 	 *
 	 * @return void
 	 */
 	public function register() {
 		$this->asset_manager->register();
-		$this->config_provider->register();
+		$this->config_provider->register(); // Safe to call - checks for duplicates internally.
 		$this->shortcode_processor->register();
 		$this->player_renderer->register();
 	}

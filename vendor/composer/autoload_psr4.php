@@ -18,6 +18,7 @@ return array(
     'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
     'GuzzleHttp\\Promise\\' => array($vendorDir . '/guzzlehttp/promises/src'),
     'GuzzleHttp\\' => array($vendorDir . '/guzzlehttp/guzzle/src'),
+    'FCHub\\License\\' => array($vendorDir . '/fchub/license-sdks-php/src'),
     'FCHubStream\\Dev\\' => array($baseDir . '/dev'),
     'FCHubStream\\App\\' => array($baseDir . '/app'),
 );

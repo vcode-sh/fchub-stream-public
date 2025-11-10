@@ -66,7 +66,7 @@ class Admin {
 	 * @return void
 	 */
 	public function add_plugin_admin_menu() {
-		// Add top-level menu.
+		// Add top-level menu positioned right after Settings (Settings is at position 80).
 		add_menu_page(
 			__( 'FCHub Stream', 'fchub-stream' ),
 			__( 'FCHub Stream', 'fchub-stream' ),
@@ -74,7 +74,7 @@ class Admin {
 			'fchub-stream',
 			array( $this, 'display_admin_page' ),
 			'dashicons-video-alt3',
-			31
+			80.1
 		);
 
 		// Add submenu pages.
@@ -89,12 +89,24 @@ class Admin {
 
 		add_submenu_page(
 			'fchub-stream',
-			__( 'Settings', 'fchub-stream' ),
-			__( 'Settings', 'fchub-stream' ),
+			__( 'License', 'fchub-stream' ),
+			__( 'License', 'fchub-stream' ),
 			'manage_options',
-			'fchub-stream-settings',
-			array( $this, 'display_settings_page' )
+			'fchub-stream-license',
+			array( $this, 'display_license_page' )
 		);
+
+		// Only add Settings submenu if license is active.
+		if ( $this->is_license_active() ) {
+			add_submenu_page(
+				'fchub-stream',
+				__( 'Settings', 'fchub-stream' ),
+				__( 'Settings', 'fchub-stream' ),
+				'manage_options',
+				'fchub-stream-settings',
+				array( $this, 'display_settings_page' )
+			);
+		}
 	}
 
 	/**
@@ -112,17 +124,61 @@ class Admin {
 	}
 
 	/**
-	 * Display settings page.
+	 * Display license page.
 	 *
-	 * Renders the settings page using Vue app.
+	 * Renders the license management page using Vue app.
 	 * Registered as menu callback via add_submenu_page().
 	 *
 	 * @since 1.0.0
 	 *
 	 * @return void
 	 */
+	public function display_license_page() {
+		$this->load_vue_app( 'license' );
+	}
+
+	/**
+	 * Display settings page.
+	 *
+	 * Renders the settings page using Vue app.
+	 * Registered as menu callback via add_submenu_page().
+	 * Redirects to license page if license is not active.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
 	public function display_settings_page() {
+		// Redirect to license page if license is not active.
+		if ( ! $this->is_license_active() ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=fchub-stream-license' ) );
+			exit;
+		}
+
 		$this->load_vue_app( 'settings' );
+	}
+
+	/**
+	 * Check if license is active.
+	 *
+	 * Checks if StreamLicenseManager exists and license is activated.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return bool True if license is active, false otherwise.
+	 */
+	private function is_license_active() {
+		if ( ! class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
+			return false;
+		}
+
+		try {
+			$license = new \FCHubStream\App\Services\StreamLicenseManager();
+			return $license->is_active();
+		} catch ( \Throwable $e ) {
+			// If license check fails, assume inactive.
+			return false;
+		}
 	}
 
 	/**
