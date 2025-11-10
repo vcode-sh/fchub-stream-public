@@ -4,6 +4,14 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.9.1] - 2025-11-10
+
+### Fixed
+
+**WordPress Compatibility Warning**
+- Fixed annoying "plugin not tested with your WordPress version" warning. Because testing on 6.8.3 and 6.9 beta counts as testing.
+- Updated "Tested up to" from 6.7 to 6.9. WordPress 6.8.3 works. WordPress 6.9 beta works. Warning gone. Simple fix.
+
 ## [0.9.0] - 2025-11-10
 
 ### Added
@@ -280,6 +288,7 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.9.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.9.1
 [0.9.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.9.0
 [0.2.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.2.0
 [0.1.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.1.1

@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.9
 Requires PHP: 8.3
-Stable tag: 0.9.0
+Stable tag: 0.9.1
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -66,7 +66,10 @@ If your enterprise can handle video streaming built by one dev who hates media l
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
 
-= 0.9.0 - 2025-11-09 =
+= 0.9.1 - 2025-11-10 =
+* Fixed WordPress compatibility warning - Updated "Tested up to" from 6.7 to 6.9. WordPress 6.8.3 works. WordPress 6.9 beta works. Warning gone. Simple fix.
+
+= 0.9.0 - 2025-11-10 =
 * License system added - Because "free forever" wasn't sustainable. Servers cost money. Who knew?
 * Configuration simplified - Admin settings got a makeover. Less clicks, more streaming. Revolutionary? No. Less annoying? Yes.
 * Performance improvements - Reduced API calls by ~30%. Made things faster. Because waiting is for 2015.
