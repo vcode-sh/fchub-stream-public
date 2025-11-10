@@ -42,6 +42,7 @@ class ComposerStaticInit8ac5313efe505ff1d16b9b10fa65f247
         ),
         'F' => 
         array (
+            'FCHub\\License\\' => 14,
             'FCHubStream\\Dev\\' => 16,
             'FCHubStream\\App\\' => 16,
         ),
@@ -97,6 +98,10 @@ class ComposerStaticInit8ac5313efe505ff1d16b9b10fa65f247
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
         ),
+        'FCHub\\License\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/fchub/license-sdks-php/src',
+        ),
         'FCHubStream\\Dev\\' => 
         array (
             0 => __DIR__ . '/../..' . '/dev',
@@ -128,6 +133,7 @@ class ComposerStaticInit8ac5313efe505ff1d16b9b10fa65f247
         'FCHubStream\\App\\Http\\Controllers\\BunnyConfigController' => __DIR__ . '/../..' . '/app/Http/Controllers/BunnyConfigController.php',
         'FCHubStream\\App\\Http\\Controllers\\CloudflareConfigController' => __DIR__ . '/../..' . '/app/Http/Controllers/CloudflareConfigController.php',
         'FCHubStream\\App\\Http\\Controllers\\CommentVideoSettingsController' => __DIR__ . '/../..' . '/app/Http/Controllers/CommentVideoSettingsController.php',
+        'FCHubStream\\App\\Http\\Controllers\\LicenseController' => __DIR__ . '/../..' . '/app/Http/Controllers/LicenseController.php',
         'FCHubStream\\App\\Http\\Controllers\\PostHogConfigController' => __DIR__ . '/../..' . '/app/Http/Controllers/PostHogConfigController.php',
         'FCHubStream\\App\\Http\\Controllers\\SentryConfigController' => __DIR__ . '/../..' . '/app/Http/Controllers/SentryConfigController.php',
         'FCHubStream\\App\\Http\\Controllers\\StreamConfigController' => __DIR__ . '/../..' . '/app/Http/Controllers/StreamConfigController.php',
@@ -146,8 +152,14 @@ class ComposerStaticInit8ac5313efe505ff1d16b9b10fa65f247
         'FCHubStream\\App\\Services\\PostHogService' => __DIR__ . '/../..' . '/app/Services/PostHogService.php',
         'FCHubStream\\App\\Services\\SentryService' => __DIR__ . '/../..' . '/app/Services/SentryService.php',
         'FCHubStream\\App\\Services\\StreamConfigService' => __DIR__ . '/../..' . '/app/Services/StreamConfigService.php',
+        'FCHubStream\\App\\Services\\StreamLicenseManager' => __DIR__ . '/../..' . '/app/Services/StreamLicenseManager.php',
+        'FCHubStream\\App\\Services\\TamperDetection' => __DIR__ . '/../..' . '/app/Services/TamperDetection.php',
         'FCHubStream\\App\\Services\\VideoUploadService' => __DIR__ . '/../..' . '/app/Services/VideoUploadService.php',
         'FCHubStream\\App\\Utils\\EncryptionService' => __DIR__ . '/../..' . '/app/Utils/EncryptionService.php',
+        'FCHub\\License\\License_API_Client' => __DIR__ . '/..' . '/fchub/license-sdks-php/src/License_API_Client.php',
+        'FCHub\\License\\License_Manager' => __DIR__ . '/..' . '/fchub/license-sdks-php/src/License_Manager.php',
+        'FCHub\\License\\License_Storage' => __DIR__ . '/..' . '/fchub/license-sdks-php/src/License_Storage.php',
+        'FCHub\\License\\License_Validator' => __DIR__ . '/..' . '/fchub/license-sdks-php/src/License_Validator.php',
         'GuzzleHttp\\BodySummarizer' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/BodySummarizer.php',
         'GuzzleHttp\\BodySummarizerInterface' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/BodySummarizerInterface.php',
         'GuzzleHttp\\Client' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/Client.php',

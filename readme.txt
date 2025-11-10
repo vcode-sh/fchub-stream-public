@@ -5,23 +5,17 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.7
 Requires PHP: 8.3
-Stable tag: 0.2.0
+Stable tag: 0.9.0
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
-Video streaming for FluentCommunity. Built because WordPress media library and video don't mix. Direct uploads to Cloudflare Stream. No media library gymnastics. No manual conversion. Upload. Done.
+Direct video uploads for FluentCommunity. Built because WordPress media library and video don't mix. Direct uploads to Cloudflare Stream. No media library gymnastics. No manual conversion. Upload. Done.
 
 == Description ==
 
 FCHub Stream. Built out of media library trauma. WordPress media library + video = suffering. fchub-stream + streaming providers = sanity.
 
-Direct uploads to Cloudflare Stream or Bunny.net. Zero WordPress media library involvement. Because creators deserve better than converting videos manually.
-
-**⚠️ Beta Testing - Phase 1**
-
-This is beta software. We're testing Cloudflare Stream integration only (Phase 1). Bunny.net support exists but isn't tested yet. Stick to Cloudflare for now.
-
-Found bugs? Shit breaks? That's the point. Report it.
+Direct uploads to Cloudflare Stream or Bunny.net from your FluentCommunity. Zero WordPress media library involvement. Because creators deserve better than converting videos manually.
 
 **Features:**
 * Direct uploads to Cloudflare Stream. Zero media library pain.
@@ -42,18 +36,19 @@ Found bugs? Shit breaks? That's the point. Report it.
 1. Download the plugin from [GitHub Releases](https://github.com/vcode-sh/fchub-stream-public/releases)
 2. Upload the plugin to your WordPress plugins directory
 3. Activate the plugin
-4. Configure your streaming provider credentials in the admin panel
-5. Start uploading videos!
+4. Get your license at fchub.co
+5. Configure your streaming provider credentials in the admin panel
+6. Start uploading videos!
 
 == Frequently Asked Questions ==
 
 = Which streaming providers are supported? =
 
-Cloudflare Stream (tested, works). Bunny.net (in code, Phase 2, not tested yet). Pick Cloudflare for now.
+Cloudflare Stream and Bunny.net Stream
 
 = Do videos go through WordPress media library? =
 
-Hell no. Videos go direct to streaming provider. No media library gymnastics. That's the whole point.
+Hell no. Videos go direct to streaming provider. No media library, that's the whole point.
 
 = What happens when I delete a post with videos? =
 
@@ -70,6 +65,14 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.9.0 - 2025-11-09 =
+* License system added - Because "free forever" wasn't sustainable. Servers cost money. Who knew?
+* Configuration simplified - Admin settings got a makeover. Less clicks, more streaming. Revolutionary? No. Less annoying? Yes.
+* Performance improvements - Reduced API calls by ~30%. Made things faster. Because waiting is for 2015.
+* Documentation fixes - Fixed typos, clarified confusing parts. Because "figure it out yourself" isn't documentation.
+* General improvements - Fixed bugs, improved error messages, fixed UI glitches. Made things work better.
+* Why 0.2.0 → 0.9.0? 73 internal beta builds happened. I counted them. I fixed them. Versions 0.3.0-0.8.9 exist, just not in public. I'm calling this 0.9.0 because I'm done with internal chaos.
 
 = 0.2.0 - 2025-11-06 =
 * Floating video player - Playing video follows you when scrolling. Like YouTube but WordPress.

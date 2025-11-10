@@ -1,6 +1,54 @@
 {
     "packages": [
         {
+            "name": "fchub/license-sdks-php",
+            "version": "dev-main",
+            "version_normalized": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../fchub-licenses-sdks/packages/php",
+                "reference": "c4dfc966385398d80553cd427e05084a7dec3229"
+            },
+            "require": {
+                "php": ">=8.3"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+                "mockery/mockery": "^1.6",
+                "phpcsstandards/phpcsutils": "^1.0",
+                "phpunit/phpunit": "^10.0",
+                "wp-coding-standards/wpcs": "^3.0"
+            },
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "FCHub\\License\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "FCHub\\License\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "test:coverage": [
+                    "phpunit --coverage-html coverage"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Universal license management for FCHub WordPress plugins",
+            "transport-options": {
+                "relative": true
+            },
+            "install-path": "../fchub/license-sdks-php"
+        },
+        {
             "name": "guzzlehttp/guzzle",
             "version": "7.10.0",
             "version_normalized": "7.10.0.0",
@@ -888,17 +936,17 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.17.1",
-            "version_normalized": "4.17.1.0",
+            "version": "4.18.0",
+            "version_normalized": "4.18.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "5c696b8de57e841a2bf3b6f6eecfd99acfdda80c"
+                "reference": "75f7efb7d435d24767c93d0081b8edf228be5772"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/5c696b8de57e841a2bf3b6f6eecfd99acfdda80c",
-                "reference": "5c696b8de57e841a2bf3b6f6eecfd99acfdda80c",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/75f7efb7d435d24767c93d0081b8edf228be5772",
+                "reference": "75f7efb7d435d24767c93d0081b8edf228be5772",
                 "shasum": ""
             },
             "require": {
@@ -909,7 +957,7 @@
                 "jean85/pretty-package-versions": "^1.5|^2.0.4",
                 "php": "^7.2|^8.0",
                 "psr/log": "^1.0|^2.0|^3.0",
-                "symfony/options-resolver": "^4.4.30|^5.0.11|^6.0|^7.0"
+                "symfony/options-resolver": "^4.4.30|^5.0.11|^6.0|^7.0|^8.0"
             },
             "conflict": {
                 "raven/raven": "*"
@@ -927,7 +975,7 @@
             "suggest": {
                 "monolog/monolog": "Allow sending log messages to Sentry by using the included Monolog handler."
             },
-            "time": "2025-10-23T15:19:24+00:00",
+            "time": "2025-11-05T14:37:07+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -963,7 +1011,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.17.1"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.18.0"
             },
             "funding": [
                 {

@@ -4,6 +4,37 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.9.0] - 2025-11-10
+
+### Added
+
+**License System**
+- Added license management system. Because "free forever" wasn't sustainable. Servers cost money. Who knew?
+- License activation, validation, and status tracking. Admin dashboard shows status. Green = good. Red = fix it.
+
+### Changed
+
+**Configuration Simplified**
+- Admin settings got a makeover. Less tabs, clearer labels, fewer "where do I click?" moments.
+- Upload settings consolidated. Everything video-related in one place. Revolutionary? No. Logical? Finally.
+
+**Performance Improvements**
+- Reduced unnecessary API calls by ~30%. Poll smarter, not harder.
+- Optimized video player rendering and database queries. Things work faster. Standard optimization stuff.
+
+### Fixed
+
+**Documentation & General Improvements**
+- Fixed typos, clarified confusing parts, added missing pieces. Because "figure it out yourself" isn't documentation.
+- Fixed edge cases, improved error messages, fixed minor UI glitches. Made things work better. Standard bug fixes.
+
+### Notes
+
+**Why 0.2.0 → 0.9.0?**
+- 73 internal beta builds happened. Yes, seventy-three. I counted them. I fixed them. I'm calling this 0.9.0 because I'm done with internal chaos.
+- Versions 0.3.0 through 0.8.9 exist. Just not in public. Internal testing was thorough. Maybe too thorough. But it works now.
+- I'm calling this 0.9.0 because I'm close to 1.0.0. "Close" meaning "next week if I decide it's ready." Which it is. I control the timeline.
+
 ## [0.2.0] - 2025-11-06
 
 ### Added
@@ -249,6 +280,7 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.9.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.9.0
 [0.2.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.2.0
 [0.1.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.1.1
 [0.1.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.1.0

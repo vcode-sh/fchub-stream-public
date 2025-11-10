@@ -15,6 +15,7 @@ use WP_Error;
 use FCHubStream\App\Services\StreamConfigService;
 use FCHubStream\App\Services\SentryService;
 use FCHubStream\App\Services\PostHogService;
+use FCHubStream\App\Services\StreamLicenseManager;
 use FCHubStream\App\Models\StreamConfig;
 use FCHubStream\App\Http\Controllers\Traits\ParsesJsonRequest;
 
@@ -34,6 +35,7 @@ class StreamConfigController {
 	 *
 	 * Handles GET request to fetch current stream provider settings.
 	 * Returns public configuration without sensitive data like API tokens.
+	 * SECURITY: Only returns provider configuration if license is active.
 	 *
 	 * @since 1.0.0
 	 *
@@ -42,10 +44,34 @@ class StreamConfigController {
 	 * @return WP_REST_Response Response object with configuration data.
 	 *                          Response structure: {
 	 *                              @type bool  $success Whether request was successful.
-	 *                              @type array $config  Public configuration data.
+	 *                              @type array $config  Public configuration data (empty if license inactive).
 	 *                          }
 	 */
 	public function get( WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by REST API interface.
+		// SECURITY: Check license before returning configuration.
+		// If license is not active, return empty config to prevent showing provider settings.
+		$license_active = false;
+		if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
+			$license = new StreamLicenseManager();
+			$license_active = $license->is_active();
+		}
+
+		// If license is not active, return empty configuration.
+		if ( ! $license_active ) {
+			return new WP_REST_Response(
+				array(
+					'success' => true,
+					'config'  => array(
+						'provider'   => '',
+						'cloudflare' => array(),
+						'bunny'      => array(),
+					),
+				),
+				200
+			);
+		}
+
+		// License is active - return full configuration.
 		$config = StreamConfigService::get_public();
 
 		return new WP_REST_Response(
@@ -110,6 +136,7 @@ class StreamConfigController {
 	 *
 	 * Handles PATCH request to change the active stream provider.
 	 * Updates the provider field in configuration.
+	 * SECURITY: Requires active license.
 	 *
 	 * @since 1.0.0
 	 *
@@ -119,6 +146,18 @@ class StreamConfigController {
 	 */
 	public function update_provider( WP_REST_Request $request ) {
 		try {
+			// Check license before allowing provider changes.
+			if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
+				$license = new StreamLicenseManager();
+				if ( ! $license->is_active() ) {
+					return new WP_Error(
+						'license_required',
+						__( 'Active FCHub Stream license required to change stream provider.', 'fchub-stream' ),
+						array( 'status' => 403 )
+					);
+				}
+			}
+
 			$data = $this->parse_json_request( $request );
 
 			if ( null === $data || empty( $data ) || ! isset( $data['provider'] ) ) {

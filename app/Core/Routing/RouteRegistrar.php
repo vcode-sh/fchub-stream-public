@@ -204,6 +204,22 @@ class RouteRegistrar {
 					)
 				);
 
+				// Cloudflare: Remove configuration.
+				register_rest_route(
+					$namespace,
+					'/stream/config/cloudflare',
+					array(
+						'methods'             => 'DELETE',
+						'callback'            => function ( $wp_request ) {
+							$controller = new \FCHubStream\App\Http\Controllers\CloudflareConfigController();
+							return $controller->remove( $wp_request );
+						},
+						'permission_callback' => function () {
+							return current_user_can( 'manage_options' );
+						},
+					)
+				);
+
 				// Bunny.net: Save configuration.
 				register_rest_route(
 					$namespace,
@@ -261,6 +277,22 @@ class RouteRegistrar {
 						'callback'            => function ( $wp_request ) {
 							$controller = new \FCHubStream\App\Http\Controllers\BunnyConfigController();
 							return $controller->update_enabled( $wp_request );
+						},
+						'permission_callback' => function () {
+							return current_user_can( 'manage_options' );
+						},
+					)
+				);
+
+				// Bunny.net: Remove configuration.
+				register_rest_route(
+					$namespace,
+					'/stream/config/bunny',
+					array(
+						'methods'             => 'DELETE',
+						'callback'            => function ( $wp_request ) {
+							$controller = new \FCHubStream\App\Http\Controllers\BunnyConfigController();
+							return $controller->remove( $wp_request );
 						},
 						'permission_callback' => function () {
 							return current_user_can( 'manage_options' );
@@ -417,6 +449,67 @@ class RouteRegistrar {
 								'type'     => 'string',
 							),
 						),
+					)
+				);
+
+				// License management endpoints (Admin endpoints).
+				register_rest_route(
+					$namespace,
+					'/stream/license/status',
+					array(
+						'methods'             => 'GET',
+						'callback'            => function ( $wp_request ) {
+							$controller = new \FCHubStream\App\Http\Controllers\LicenseController();
+							return $controller->get_status( $wp_request );
+						},
+						'permission_callback' => function () {
+							return current_user_can( 'manage_options' );
+						},
+					)
+				);
+
+				register_rest_route(
+					$namespace,
+					'/stream/license/activate',
+					array(
+						'methods'             => 'POST',
+						'callback'            => function ( $wp_request ) {
+							$controller = new \FCHubStream\App\Http\Controllers\LicenseController();
+							return $controller->activate( $wp_request );
+						},
+						'permission_callback' => function () {
+							return current_user_can( 'manage_options' );
+						},
+					)
+				);
+
+				register_rest_route(
+					$namespace,
+					'/stream/license/validate',
+					array(
+						'methods'             => 'POST',
+						'callback'            => function ( $wp_request ) {
+							$controller = new \FCHubStream\App\Http\Controllers\LicenseController();
+							return $controller->validate( $wp_request );
+						},
+						'permission_callback' => function () {
+							return current_user_can( 'manage_options' );
+						},
+					)
+				);
+
+				register_rest_route(
+					$namespace,
+					'/stream/license/deactivate',
+					array(
+						'methods'             => 'POST',
+						'callback'            => function ( $wp_request ) {
+							$controller = new \FCHubStream\App\Http\Controllers\LicenseController();
+							return $controller->deactivate( $wp_request );
+						},
+						'permission_callback' => function () {
+							return current_user_can( 'manage_options' );
+						},
 					)
 				);
 

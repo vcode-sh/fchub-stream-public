@@ -51,6 +51,24 @@ class VideoUploadService {
 	 * }
 	 */
 	public static function upload( $file_path, $filename, $metadata = array() ) {
+		// SECURITY LAYER 3: Check file integrity before upload (Service Layer)
+		if ( class_exists( 'FCHubStream\App\Services\TamperDetection' ) ) {
+			TamperDetection::check_file_integrity( 'upload_service' );
+		}
+
+		// Check license before upload.
+		if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
+			$license = new StreamLicenseManager();
+
+			if ( ! $license->can_upload_video() ) {
+				return new WP_Error(
+					'license_required',
+					__( 'Active FCHub Stream license required for video uploads.', 'fchub-stream' ),
+					array( 'status' => 403 )
+				);
+			}
+		}
+
 		$filesize  = file_exists( $file_path ) ? filesize( $file_path ) : 0;
 		$extension = pathinfo( $filename, PATHINFO_EXTENSION );
 
@@ -731,7 +749,7 @@ class VideoUploadService {
 					<iframe
 						src="%s"
 						style="position: absolute; top: 0; left: 0; width: 100%%; height: 100%%; border: 0;"
-						allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+						allow="accelerometer; gyroscope; autoplay; encrypted-media;"
 						allowfullscreen="true">
 					</iframe>
 				</div>',
@@ -778,7 +796,7 @@ class VideoUploadService {
 		// Generate player URL and HTML.
 		$player_url  = "https://iframe.mediadelivery.net/embed/{$library_id}/{$video_id}";
 		$player_html = sprintf(
-			'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen="true"></iframe>',
+			'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; autoplay; encrypted-media; gyroscope;" allowfullscreen="true"></iframe>',
 			esc_url( $player_url )
 		);
 
@@ -923,7 +941,7 @@ class VideoUploadService {
 			$player_url = "https://iframe.mediadelivery.net/embed/{$library_id}/{$video_id}";
 
 			return sprintf(
-				'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen="true"></iframe>',
+				'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; autoplay; encrypted-media; gyroscope;" allowfullscreen="true"></iframe>',
 				esc_url( $player_url )
 			);
 		}
@@ -943,7 +961,7 @@ class VideoUploadService {
 		$player_url = "https://customer-{$account_id}.cloudflarestream.com/{$video_id}/iframe";
 
 		return sprintf(
-			'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>',
+			'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; gyroscope; autoplay; encrypted-media;" allowfullscreen="true"></iframe>',
 			esc_url( $player_url )
 		);
 	}

@@ -27,6 +27,12 @@
         "classmap": [],
         "files": []
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../fchub-licenses-sdks/packages/php"
+        }
+    ],
     "extra": {
         "wpfluent": {
             "namespace": {
@@ -35,10 +41,11 @@
             }
         }
     },
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
         "php": ">=8.3",
+        "fchub/license-sdks-php": "*",
         "pusher/pusher-php-server": "^7.2.7",
         "posthog/posthog-php": "^3.2",
         "sentry/sentry": "^4.17",

@@ -18,6 +18,7 @@ use WP_REST_Response;
 use WP_Error;
 use FCHubStream\App\Services\StreamConfigService;
 use FCHubStream\App\Services\SentryService;
+use FCHubStream\App\Services\StreamLicenseManager;
 use FCHubStream\App\Http\Controllers\Traits\ParsesJsonRequest;
 use FCHubStream\App\Models\StreamConfig;
 
@@ -137,6 +138,18 @@ abstract class ProviderConfigController {
 	 */
 	public function save( WP_REST_Request $request ) {
 		try {
+			// Check license before allowing configuration changes.
+			if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
+				$license = new StreamLicenseManager();
+				if ( ! $license->is_active() ) {
+					return new WP_Error(
+						'license_required',
+						__( 'Active FCHub Stream license required to configure stream providers.', 'fchub-stream' ),
+						array( 'status' => 403 )
+					);
+				}
+			}
+
 			$data = $this->parse_json_request( $request );
 
 			if ( empty( $data ) ) {
@@ -322,6 +335,18 @@ abstract class ProviderConfigController {
 	 */
 	public function update_enabled( WP_REST_Request $request ) {
 		try {
+			// Check license before allowing enabled status changes.
+			if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
+				$license = new StreamLicenseManager();
+				if ( ! $license->is_active() ) {
+					return new WP_Error(
+						'license_required',
+						__( 'Active FCHub Stream license required to enable stream providers.', 'fchub-stream' ),
+						array( 'status' => 403 )
+					);
+				}
+			}
+
 			$data = $this->parse_json_request( $request );
 
 			if ( empty( $data ) || ! isset( $data['enabled'] ) ) {
@@ -471,5 +496,93 @@ abstract class ProviderConfigController {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Remove provider configuration.
+	 *
+	 * Handles DELETE request to remove configuration for this specific provider only.
+	 * Removes provider credentials and settings while preserving other providers' configuration.
+	 *
+	 * Template Method: Implements common remove logic while delegating
+	 * provider name to child classes.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param WP_REST_Request $request REST request object.
+	 *
+	 * @return WP_REST_Response|WP_Error Response with success message, or error on failure.
+	 *                                   Response structure: {
+	 *                                       @type bool   $success Whether removal was successful.
+	 *                                       @type string $message Success or error message.
+	 *                                   }
+	 *
+	 * @throws WP_Error If deletion fails or exception occurs.
+	 */
+	public function remove( WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Required by REST API interface.
+		try {
+			$provider = $this->get_provider_name();
+
+			// Get current config.
+			$config = StreamConfig::get();
+
+			if ( ! is_array( $config ) ) {
+				return new WP_Error(
+					'invalid_config',
+					__( 'Invalid configuration retrieved.', 'fchub-stream' ),
+					array( 'status' => 500 )
+				);
+			}
+
+			// Remove only this provider's configuration.
+			if ( isset( $config[ $provider ] ) ) {
+				unset( $config[ $provider ] );
+			}
+
+			// If this was the active provider, reset to default or first available.
+			if ( isset( $config['provider'] ) && $provider === $config['provider'] ) {
+				// Check if other provider is configured.
+				$other_provider = 'cloudflare' === $provider ? 'bunny' : 'cloudflare';
+				if ( ! empty( $config[ $other_provider ] ) && ! empty( $config[ $other_provider ]['enabled'] ) ) {
+					$config['provider'] = $other_provider;
+				} else {
+					// No other provider configured, reset to default.
+					$config['provider'] = 'cloudflare';
+				}
+			}
+
+			// Save updated config.
+			$saved = StreamConfig::save( $config );
+
+			if ( ! $saved ) {
+				return new WP_Error(
+					'delete_failed',
+					__( 'Failed to remove configuration.', 'fchub-stream' ),
+					array( 'status' => 500 )
+				);
+			}
+
+			$provider_name = 'cloudflare' === $provider ? 'Cloudflare Stream' : 'Bunny.net Stream';
+
+			return new WP_REST_Response(
+				array(
+					'success' => true,
+					'message' => sprintf(
+						/* translators: %s: Provider name */
+						__( '%s configuration removed successfully.', 'fchub-stream' ),
+						$provider_name
+					),
+				),
+				200
+			);
+		} catch ( \Exception $e ) {
+			error_log( '[FCHub Stream] Exception in remove: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			SentryService::capture_exception( $e );
+			return new WP_Error(
+				'remove_exception',
+				__( 'An error occurred while removing configuration.', 'fchub-stream' ) . ' ' . $e->getMessage(),
+				array( 'status' => 500 )
+			);
+		}
 	}
 }
