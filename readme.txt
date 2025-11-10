@@ -3,7 +3,7 @@
 Contributors: vcode-sh
 Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 8.3
 Stable tag: 0.9.0
 License: Proprietary
