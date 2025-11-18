@@ -27,12 +27,6 @@
         "classmap": [],
         "files": []
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../../fchub-licenses-sdks/packages/php"
-        }
-    ],
     "extra": {
         "wpfluent": {
             "namespace": {

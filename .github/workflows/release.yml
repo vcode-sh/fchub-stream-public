@@ -21,6 +21,37 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, curl
+
+      - name: Verify vendor dependencies
+        run: |
+          # Check if vendor/fchub/license-sdks-php is a symlink (shouldn't be after sync-to-public.sh fix)
+          if [ -L "vendor/fchub/license-sdks-php" ]; then
+            echo "❌ ERROR: vendor/fchub/license-sdks-php is still a symlink"
+            echo "Run sync-to-public.sh to fix this before releasing"
+            exit 1
+          fi
+          
+          # Verify License_Manager.php exists
+          if [ ! -f "vendor/fchub/license-sdks-php/src/License_Manager.php" ]; then
+            echo "❌ ERROR: License_Manager.php not found in vendor/fchub/license-sdks-php/src/"
+            echo "Available vendor/fchub contents:"
+            ls -la vendor/fchub/ 2>/dev/null || echo "vendor/fchub/ does not exist"
+            exit 1
+          fi
+          
+          # Verify other critical dependencies
+          if [ ! -f "vendor/autoload.php" ]; then
+            echo "❌ ERROR: vendor/autoload.php not found"
+            exit 1
+          fi
+          
+          echo "✓ Vendor dependencies verified"
+
       - name: Create release ZIP
         run: |
           # Create temp directory
@@ -33,6 +64,20 @@ jobs:
             --exclude='fchub-stream-*.zip' \
             --exclude='fchub-stream.zip' \
             . /tmp/fchub-stream/
+          
+          # Verify vendor/ is included
+          if [ ! -d "/tmp/fchub-stream/vendor" ]; then
+            echo "❌ ERROR: vendor/ directory not found in release package"
+            exit 1
+          fi
+          
+          # Verify License_Manager.php is in ZIP
+          if [ ! -f "/tmp/fchub-stream/vendor/fchub/license-sdks-php/src/License_Manager.php" ]; then
+            echo "❌ ERROR: License_Manager.php not found in release package"
+            exit 1
+          fi
+          
+          echo "✓ Release package verified"
 
           # Create versioned ZIP
           cd /tmp
