@@ -16,8 +16,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Use fully qualified class name to avoid issues if SDK is not loaded yet
-// The class will be checked before instantiation in controllers
+// CRITICAL: Ensure parent class is loaded before extending.
+// If SDK is not loaded, this will cause a fatal error.
+// Check is done in boot/app.php, but add safety check here too.
+if ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
+	// Try to load SDK manually if autoloader didn't load it.
+	$fchub_stream_sdk_path = dirname( dirname( __DIR__ ) ) . '/vendor/fchub/license-sdks-php/src/License_Manager.php';
+	if ( file_exists( $fchub_stream_sdk_path ) ) {
+		require_once $fchub_stream_sdk_path;
+	}
+}
+
+// Use fully qualified class name to avoid issues if SDK is not loaded yet.
+// The class will be checked before instantiation in controllers.
 
 /**
  * Stream License Manager class.
@@ -56,16 +67,16 @@ class StreamLicenseManager extends \FCHub\License\License_Manager {
 	 */
 	public function is_feature_enabled( string $feature ): bool {
 		$features = $this->get_features();
-		
-		// Check if feature exists in features array
-		// Note: License can have both max_sites (Companion format) AND Stream features (video_upload, etc.)
-		// So we check for the specific feature regardless of max_sites presence
+
+		// Check if feature exists in features array.
+		// Note: License can have both max_sites (Companion format) AND Stream features (video_upload, etc.).
+		// So we check for the specific feature regardless of max_sites presence.
 		if ( isset( $features[ $feature ] ) ) {
-			// Feature exists - return its value (true/false)
+			// Feature exists - return its value (true/false).
 			return (bool) $features[ $feature ];
 		}
 
-		// Feature not found
+		// Feature not found.
 		return false;
 	}
 
@@ -92,9 +103,9 @@ class StreamLicenseManager extends \FCHub\License\License_Manager {
 	 * @return bool True if video upload is allowed, false otherwise.
 	 */
 	public function can_upload_video(): bool {
-		// Honeypot check - if someone modifies this to bypass, they'll call honeypot
+		// Honeypot check - if someone modifies this to bypass, they'll call honeypot.
 		if ( ! $this->is_active() ) {
-			// Honeypot: This function should NEVER be called if license is inactive
+			// Honeypot: This function should NEVER be called if license is inactive.
 			if ( class_exists( 'FCHubStream\App\Services\TamperDetection' ) ) {
 				TamperDetection::_internal_bypass_check();
 			}

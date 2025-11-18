@@ -3,9 +3,9 @@
 Contributors: vcode-sh
 Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
-Tested up to: 6.9
+Tested up to: 6.9.0
 Requires PHP: 8.3
-Stable tag: 0.9.1
+Stable tag: 0.9.2
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -65,6 +65,12 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.9.2 - 2025-11-18 =
+* Fixed missing vendor/ directory in release ZIPs - Users don't need composer. Plugin just works. As intended.
+* GitHub Actions now properly packages all dependencies - No more "Class not found" errors.
+* Analytics performance improvements - Reduced unnecessary API calls and optimized data processing.
+
 
 = 0.9.1 - 2025-11-10 =
 * Fixed WordPress compatibility warning - Updated "Tested up to" from 6.7 to 6.9. WordPress 6.8.3 works. WordPress 6.9 beta works. Warning gone. Simple fix.

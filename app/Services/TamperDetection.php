@@ -65,7 +65,7 @@ class TamperDetection {
 	 * @return void
 	 */
 	public static function init(): void {
-		// Initialize file hashes on first run
+		// Initialize file hashes on first run.
 		self::initialize_file_hashes();
 	}
 
@@ -81,7 +81,7 @@ class TamperDetection {
 	 */
 	private static function initialize_file_hashes(): void {
 		if ( ! empty( self::$file_hashes ) ) {
-			return; // Already initialized
+			return; // Already initialized.
 		}
 
 		$plugin_dir = dirname( dirname( dirname( __DIR__ ) ) );
@@ -93,7 +93,7 @@ class TamperDetection {
 			}
 		}
 
-		// Store hashes in transient (24h expiry)
+		// Store hashes in transient (24h expiry).
 		set_transient( 'fchub_stream_file_hashes', self::$file_hashes, DAY_IN_SECONDS );
 	}
 
@@ -109,20 +109,20 @@ class TamperDetection {
 	 * @return bool True if integrity check passed, false otherwise.
 	 */
 	public static function check_file_integrity( string $context = 'general' ): bool {
-		// Load stored hashes
+		// Load stored hashes.
 		$stored_hashes = get_transient( 'fchub_stream_file_hashes' );
 		if ( empty( $stored_hashes ) ) {
 			self::initialize_file_hashes();
 			$stored_hashes = self::$file_hashes;
 		}
 
-		$plugin_dir = dirname( dirname( dirname( __DIR__ ) ) );
+		$plugin_dir      = dirname( dirname( dirname( __DIR__ ) ) );
 		$license_manager = new StreamLicenseManager();
-		$stored_data = $license_manager->get_stored_data();
-		$license_key = $stored_data['key'] ?? null;
+		$stored_data     = $license_manager->get_stored_data();
+		$license_key     = $stored_data['key'] ?? null;
 
 		if ( ! $license_key ) {
-			return true; // No license = no tampering check needed
+			return true; // No license = no tampering check needed.
 		}
 
 		$tampered_files = array();
@@ -130,16 +130,16 @@ class TamperDetection {
 		foreach ( self::CRITICAL_FILES as $file ) {
 			$file_path = $plugin_dir . '/' . $file;
 			if ( ! file_exists( $file_path ) ) {
-				continue; // File doesn't exist, skip
+				continue; // File doesn't exist, skip.
 			}
 
-			$current_hash = md5_file( $file_path );
+			$current_hash  = md5_file( $file_path );
 			$expected_hash = $stored_hashes[ $file ] ?? null;
 
 			if ( $expected_hash && $current_hash !== $expected_hash ) {
 				$tampered_files[] = $file;
 
-				// Report tampering immediately
+				// Report tampering immediately.
 				self::report_tampering(
 					$license_key,
 					$file,
@@ -147,7 +147,7 @@ class TamperDetection {
 					$current_hash,
 					'file_integrity',
 					array(
-						'context' => $context,
+						'context'        => $context,
 						'plugin_version' => FCHUB_STREAM_VERSION ?? 'unknown',
 					)
 				);
@@ -162,12 +162,12 @@ class TamperDetection {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string $license_key License key.
-	 * @param string $file_path File path that was tampered with.
-	 * @param string|null $expected_hash Expected file hash.
-	 * @param string|null $actual_hash Actual file hash.
-	 * @param string $detection_method Detection method ('file_integrity', 'code_modification', 'manual_check').
-	 * @param array  $metadata Additional metadata.
+	 * @param string      $license_key      License key.
+	 * @param string      $file_path        File path that was tampered with.
+	 * @param string|null $expected_hash    Expected file hash.
+	 * @param string|null $actual_hash      Actual file hash.
+	 * @param string      $detection_method Detection method ('file_integrity', 'code_modification', 'manual_check').
+	 * @param array       $metadata         Additional metadata.
 	 * @return bool|WP_Error True on success, WP_Error on failure.
 	 */
 	public static function report_tampering(
@@ -186,14 +186,14 @@ class TamperDetection {
 				'headers' => array( 'Content-Type' => 'application/json' ),
 				'body'    => wp_json_encode(
 					array(
-						'license_key'     => $license_key,
-						'site_url'        => $site_url,
-						'product'         => 'fchub-stream',
-						'file_path'       => $file_path,
-						'expected_hash'   => $expected_hash,
-						'actual_hash'     => $actual_hash,
+						'license_key'      => $license_key,
+						'site_url'         => $site_url,
+						'product'          => 'fchub-stream',
+						'file_path'        => $file_path,
+						'expected_hash'    => $expected_hash,
+						'actual_hash'      => $actual_hash,
 						'detection_method' => $detection_method,
-						'metadata'        => $metadata,
+						'metadata'         => $metadata,
 					)
 				),
 				'timeout' => 10,
@@ -230,18 +230,18 @@ class TamperDetection {
 	 */
 	public static function report_bypass_attempt( string $function_name, array $metadata = array() ): void {
 		$license_manager = new StreamLicenseManager();
-		$stored_data = $license_manager->get_stored_data();
-		$license_key = $stored_data['key'] ?? null;
+		$stored_data     = $license_manager->get_stored_data();
+		$license_key     = $stored_data['key'] ?? null;
 
 		if ( ! $license_key ) {
-			return; // No license = no reporting
+			return; // No license = no reporting.
 		}
 
 		$site_url = get_site_url();
 
-		// Capture call stack (limited to 10 frames)
-		$call_stack = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 10 ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
-		$call_stack_str = wp_json_encode( array_slice( $call_stack, 1, 5 ) ); // Skip this function
+		// Capture call stack (limited to 10 frames).
+		$call_stack     = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 10 ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
+		$call_stack_str = wp_json_encode( array_slice( $call_stack, 1, 5 ) ); // Skip this function.
 
 		wp_remote_post(
 			self::API_BASE . '/licenses.reportBypassAttempt',
@@ -249,19 +249,19 @@ class TamperDetection {
 				'headers' => array( 'Content-Type' => 'application/json' ),
 				'body'    => wp_json_encode(
 					array(
-						'license_key'  => $license_key,
-						'site_url'    => $site_url,
-						'product'     => 'fchub-stream',
+						'license_key'   => $license_key,
+						'site_url'      => $site_url,
+						'product'       => 'fchub-stream',
 						'function_name' => $function_name,
-						'call_stack'  => $call_stack_str,
-						'metadata'    => $metadata,
+						'call_stack'    => $call_stack_str,
+						'metadata'      => $metadata,
 					)
 				),
 				'timeout' => 10,
 			)
 		);
 
-		// Log locally as well
+		// Log locally as well.
 		error_log( '[FCHub Stream] BYPASS ATTEMPT DETECTED: ' . $function_name ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
@@ -281,11 +281,11 @@ class TamperDetection {
 		array $evidence = array()
 	) {
 		$license_manager = new StreamLicenseManager();
-		$stored_data = $license_manager->get_stored_data();
-		$license_key = $stored_data['key'] ?? null;
+		$stored_data     = $license_manager->get_stored_data();
+		$license_key     = $stored_data['key'] ?? null;
 
 		if ( ! $license_key ) {
-			return true; // No license = no reporting
+			return true; // No license = no reporting.
 		}
 
 		$site_url = get_site_url();
@@ -297,11 +297,11 @@ class TamperDetection {
 				'body'    => wp_json_encode(
 					array(
 						'license_key'   => $license_key,
-						'site_url'     => $site_url,
-						'product'      => 'fchub-stream',
+						'site_url'      => $site_url,
+						'product'       => 'fchub-stream',
 						'activity_type' => $activity_type,
-						'description'  => $description,
-						'evidence'     => $evidence,
+						'description'   => $description,
+						'evidence'      => $evidence,
 					)
 				),
 				'timeout' => 10,
@@ -331,4 +331,3 @@ class TamperDetection {
 		return false;
 	}
 }
-

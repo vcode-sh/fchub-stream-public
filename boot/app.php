@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use FCHubStream\App\Core\Application;
+use function FCHubStream\App\Utils\log_debug;
 
 /**
  * Bootstrap the plugin.
@@ -37,27 +38,50 @@ return function ( $file ) {
 		require_once __DIR__ . '/../vendor/autoload.php';
 	}
 
-	// Fix SDK symlink if relative symlink doesn't work (common in Docker environments)
+	// CRITICAL: Ensure SDK is loaded before StreamLicenseManager is used.
+	// StreamLicenseManager extends FCHub\License\License_Manager, so the parent class
+	// must be available when PHP tries to load StreamLicenseManager.
+	if ( defined( 'FCHUB_STREAM_DIR' ) && ! class_exists( 'FCHub\License\License_Manager' ) ) {
+		// Try multiple paths to find SDK.
+		$sdk_paths = array(
+			FCHUB_STREAM_DIR . 'vendor/fchub/license-sdks-php/src/License_Manager.php',
+			__DIR__ . '/../vendor/fchub/license-sdks-php/src/License_Manager.php',
+		);
+
+		foreach ( $sdk_paths as $sdk_path ) {
+			if ( file_exists( $sdk_path ) ) {
+				require_once $sdk_path;
+				// Also try to load autoloader from SDK if it exists.
+				$sdk_autoload = dirname( dirname( $sdk_path ) ) . '/vendor/autoload.php';
+				if ( file_exists( $sdk_autoload ) ) {
+					require_once $sdk_autoload;
+				}
+				break;
+			}
+		}
+	}
+
+	// Fix SDK symlink if relative symlink doesn't work (common in Docker environments).
 	if ( defined( 'FCHUB_STREAM_DIR' ) && ! class_exists( 'FCHub\License\License_Manager' ) ) {
 		$sdk_symlink = FCHUB_STREAM_DIR . 'vendor/fchub/license-sdks-php';
-		
-		// Check if symlink exists but points to wrong location
+
+		// Check if symlink exists but points to wrong location.
 		if ( is_link( $sdk_symlink ) ) {
 			$current_target = readlink( $sdk_symlink );
-			$sdk_file = $sdk_symlink . '/src/License_Manager.php';
-			
-			// If relative symlink doesn't resolve, try to fix it
+			$sdk_file       = $sdk_symlink . '/src/License_Manager.php';
+
+			// If relative symlink doesn't resolve, try to fix it.
 			if ( ! file_exists( $sdk_file ) ) {
-				// Try Docker path first
+				// Try Docker path first.
 				$docker_target = '/var/www/html/fchub-licenses-sdks/packages/php';
 				if ( file_exists( $docker_target . '/src/License_Manager.php' ) ) {
-					@unlink( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					wp_delete_file( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 					@symlink( $docker_target, $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 				} else {
-					// Try to resolve relative path
+					// Try to resolve relative path.
 					$resolved_path = realpath( dirname( $sdk_symlink ) . '/' . $current_target );
 					if ( $resolved_path && file_exists( $resolved_path . '/src/License_Manager.php' ) ) {
-						@unlink( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+						wp_delete_file( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 						@symlink( $resolved_path, $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 					}
 				}
@@ -149,7 +173,7 @@ return function ( $file ) {
 					1
 				);
 
-				error_log( '[FCHub Stream] Video deletion hooks registered early (plugins_loaded)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_debug( 'Video deletion hooks registered early (plugins_loaded)' );
 			}
 
 			// CRITICAL: Register portal vars hook EARLY (before portal_loaded).

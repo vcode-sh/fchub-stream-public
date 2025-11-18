@@ -25,8 +25,16 @@
             "FCHubStream\\Dev\\": "dev/"
         },
         "classmap": [],
-        "files": []
+        "files": [
+            "app/Utils/Logger.php"
+        ]
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../fchub-licenses-sdks/packages/php"
+        }
+    ],
     "extra": {
         "wpfluent": {
             "namespace": {

@@ -4,6 +4,23 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.9.2] - 2025-11-18
+
+### New
+
+
+### Changed
+
+**Analytics Performance**
+- Improved analytics performance by reducing unnecessary API calls.
+- Optimized analytics data processing.
+
+### Fixed
+
+**Release Package Now Includes All Dependencies**
+- Fixed missing `vendor/` directory in release ZIPs. Users don't need composer. Plugin just works. As intended.
+- GitHub Actions now properly packages all dependencies. No more "Class not found" errors. Revolutionary? No. Expected? Yes.
+
 ## [0.9.1] - 2025-11-10
 
 ### Fixed

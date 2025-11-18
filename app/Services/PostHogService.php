@@ -12,6 +12,9 @@
 
 namespace FCHubStream\App\Services;
 
+use function FCHubStream\App\Utils\log_debug;
+use function FCHubStream\App\Utils\log_error;
+
 /**
  * PostHog Service class.
  *
@@ -129,7 +132,7 @@ class PostHogService {
 			return true;
 		} catch ( \Exception $e ) {
 			// Silently fail - don't break plugin if PostHog fails.
-			error_log( '[FCHub Stream] Failed to initialize PostHog: ' . $e->getMessage() );
+			log_error( 'Failed to initialize PostHog: ' . $e->getMessage() );
 			return false;
 		}
 	}
@@ -217,7 +220,7 @@ class PostHogService {
 			\PostHog\PostHog::identify( $identify_data );
 		} catch ( \Exception $e ) {
 			// Silently fail.
-			error_log( '[FCHub Stream] Failed to identify user in PostHog: ' . $e->getMessage() );
+			log_error( 'Failed to identify user in PostHog: ' . $e->getMessage() );
 		}
 	}
 
@@ -269,7 +272,7 @@ class PostHogService {
 			// Validate distinct ID before sending event.
 			// PostHog requires a valid distinctId, otherwise it throws "Already scheduled or no user id".
 			if ( empty( $distinct_id_value ) ) {
-				error_log( '[FCHub Stream] PostHog: Cannot capture event "' . $event . '" - no distinct ID available. Skipping event.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_debug( 'PostHog: Cannot capture event "' . $event . '" - no distinct ID available. Skipping event.' );
 				return;
 			}
 
@@ -282,14 +285,12 @@ class PostHogService {
 			);
 
 			// Debug: Log event being sent (only in debug mode).
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( sprintf( '[FCHub Stream] PostHog: Capturing event "%s" for user %s', $event, $distinct_id_value ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			}
+			log_debug( sprintf( 'PostHog: Capturing event "%s" for user %s', $event, $distinct_id_value ) );
 
 			\PostHog\PostHog::capture( $event_data );
 		} catch ( \Exception $e ) {
 			// Silently fail.
-			error_log( '[FCHub Stream] Failed to capture event in PostHog: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'Failed to capture event in PostHog: ' . $e->getMessage() );
 		}
 	}
 
@@ -315,7 +316,7 @@ class PostHogService {
 			}
 		} catch ( \Exception $e ) {
 			// Silently fail.
-			error_log( '[FCHub Stream] Failed to set super properties in PostHog: ' . $e->getMessage() );
+			log_error( 'Failed to set super properties in PostHog: ' . $e->getMessage() );
 		}
 	}
 
@@ -886,14 +887,12 @@ class PostHogService {
 
 		try {
 			// Debug: Log flush attempt (only in debug mode).
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( '[FCHub Stream] PostHog: Flushing events...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			}
+			log_debug( 'PostHog: Flushing events...' );
 
 			\PostHog\PostHog::flush();
 		} catch ( \Exception $e ) {
 			// Silently fail.
-			error_log( '[FCHub Stream] Failed to flush PostHog events: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'Failed to flush PostHog events: ' . $e->getMessage() );
 		}
 	}
 }

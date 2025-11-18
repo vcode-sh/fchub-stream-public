@@ -19,7 +19,7 @@
 // Add "Get License" link to plugin row meta (Version | By | View details section) if license is not active.
 $app->addFilter(
 	'plugin_row_meta',
-	function ( $plugin_meta, $plugin_file, $plugin_data ) {
+	function ( $plugin_meta, $plugin_file, $_plugin_data ) {
 		// Only add link for our plugin.
 		if ( $plugin_file !== plugin_basename( FCHUB_STREAM_FILE ) ) {
 			return $plugin_meta;

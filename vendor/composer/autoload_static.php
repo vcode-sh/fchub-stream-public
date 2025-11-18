@@ -13,6 +13,7 @@ class ComposerStaticInit8ac5313efe505ff1d16b9b10fa65f247
         '3109cb1a231dcd04bee1f9f620d46975' => __DIR__ . '/..' . '/paragonie/sodium_compat/autoload.php',
         'fb4ca2d97fe7ba6af750497425204e70' => __DIR__ . '/..' . '/sentry/sentry/src/functions.php',
         'f6d4f6bcee7247df6b777884c3e22f98' => __DIR__ . '/..' . '/yahnis-elsts/plugin-update-checker/load-v5p6.php',
+        '50ead9e41a0a9360b8cf8e36a355dbae' => __DIR__ . '/../..' . '/app/Utils/Logger.php',
     );
 
     public static $prefixLengthsPsr4 = array (

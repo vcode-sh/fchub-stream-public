@@ -13,6 +13,8 @@
 namespace FCHubStream\App\Services;
 
 use WP_Error;
+use function FCHubStream\App\Utils\log_debug;
+use function FCHubStream\App\Utils\log_error;
 
 /**
  * Video Upload Service class.
@@ -51,7 +53,7 @@ class VideoUploadService {
 	 * }
 	 */
 	public static function upload( $file_path, $filename, $metadata = array() ) {
-		// SECURITY LAYER 3: Check file integrity before upload (Service Layer)
+		// SECURITY LAYER 3: Check file integrity before upload (Service Layer).
 		if ( class_exists( 'FCHubStream\App\Services\TamperDetection' ) ) {
 			TamperDetection::check_file_integrity( 'upload_service' );
 		}
@@ -125,7 +127,7 @@ class VideoUploadService {
 			}
 		} catch ( \Exception $e ) {
 			// Silently continue - don't break upload if Sentry fails.
-			error_log( '[FCHub Stream] Failed to initialize Sentry for upload: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Failed to initialize Sentry for upload: ' . $e->getMessage() );
 		}
 
 		try {
@@ -199,7 +201,7 @@ class VideoUploadService {
 					}
 				} catch ( \Exception $e ) {
 					// Silently continue - don't break upload if tracking fails.
-					error_log( '[FCHub Stream] Failed to track validation failure: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					log_debug( 'Failed to track validation failure: ' . $e->getMessage() );
 				}
 
 				if ( $transaction ) {
@@ -332,7 +334,7 @@ class VideoUploadService {
 					}
 				} catch ( \Exception $e ) {
 					// Silently continue - don't break upload if tracking fails.
-					error_log( '[FCHub Stream] Failed to track upload failure: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					log_debug( 'Failed to track upload failure: ' . $e->getMessage() );
 				}
 
 				if ( $transaction ) {
@@ -415,7 +417,7 @@ class VideoUploadService {
 				}
 			} catch ( \Exception $e ) {
 				// Silently continue - don't break upload if tracking fails.
-				error_log( '[FCHub Stream] Failed to track successful upload: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_debug( 'Failed to track successful upload: ' . $e->getMessage() );
 			}
 
 			return $result;
@@ -733,7 +735,7 @@ class VideoUploadService {
 		// CRITICAL: Only mark as ready if video has playback URLs AND pctComplete is 100.
 		// Cloudflare may return readyToStream=true with playback URLs BUT pctComplete < 100.
 		// In this case, manifest URLs return 404 until pctComplete reaches 100.
-		// Reference: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks
+		// Reference: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks.
 		$pct_complete = floatval( $result['status']['pctComplete'] ?? 0 );
 		$actual_ready = $ready && isset( $result['playback']['hls'] ) && ! empty( $result['playback']['hls'] ) && $pct_complete >= 100;
 
@@ -741,7 +743,7 @@ class VideoUploadService {
 		if ( $ready && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			error_log( '[FCHub Stream] Video pctComplete: ' . $pct_complete . '% for video_id: ' . $video_id . ', actual_ready: ' . ( $actual_ready ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
-		$player_html  = '';
+		$player_html = '';
 		if ( $actual_ready ) {
 			// Full HTML with wrapper div matching PortalIntegration format.
 			$player_html = sprintf(

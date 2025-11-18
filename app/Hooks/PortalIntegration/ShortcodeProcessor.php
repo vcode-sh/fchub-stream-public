@@ -307,7 +307,7 @@ class ShortcodeProcessor {
 							$player_html = $this->player_renderer->get_player_html( $video_id, $provider, 'ready' );
 							// Note: player_html already includes wrapper - no need to wrap again.
 							$data['feed']['meta']['media_preview']['html'] = $player_html;
-							$feed_id = $data['feed']['id'] ?? null;
+							$feed_id                                       = $data['feed']['id'] ?? null;
 							error_log( '[FCHub Stream] Updated media_preview HTML for ready video in post ID: ' . ( $feed_id ?? 'unknown' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 							// CRITICAL: Update database so next page load shows iframe immediately.

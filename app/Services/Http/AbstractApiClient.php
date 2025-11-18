@@ -15,6 +15,7 @@ namespace FCHubStream\App\Services\Http;
 
 use WP_Error;
 use FCHubStream\App\Services\SentryService;
+use function FCHubStream\App\Utils\log_error;
 
 /**
  * Abstract API Client Class.
@@ -302,7 +303,7 @@ abstract class AbstractApiClient {
 	 * @return void
 	 */
 	protected function log_error( $message ) {
-		error_log( '[FCHub Stream] ' . $message ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_error( $message );
 
 		// Send to Sentry for error tracking.
 		SentryService::capture_message( $message, 'error' );

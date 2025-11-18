@@ -1,0 +1,36 @@
+{
+  "name": "fchub/license-sdks-php",
+  "description": "Universal license management for FCHub WordPress plugins",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "FCHub\\License\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "FCHub\\License\\Tests\\": "tests/"
+    }
+  },
+  "require-dev": {
+    "wp-coding-standards/wpcs": "^3.0",
+    "phpcsstandards/phpcsutils": "^1.0",
+    "phpunit/phpunit": "^10.0",
+    "mockery/mockery": "^1.6",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "test:coverage": "phpunit --coverage-html coverage"
+  }
+}
+

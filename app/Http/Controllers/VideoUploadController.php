@@ -20,6 +20,8 @@ use FCHubStream\App\Services\SentryService;
 use FCHubStream\App\Services\PostHogService;
 use FCHubStream\App\Services\StreamLicenseManager;
 use FCHubStream\App\Services\TamperDetection;
+use function FCHubStream\App\Utils\log_debug;
+use function FCHubStream\App\Utils\log_error;
 
 /**
  * Video Upload Controller class.
@@ -61,13 +63,13 @@ class VideoUploadController {
 			}
 		} catch ( \Exception $e ) {
 			// Silently continue - don't break upload if Sentry fails.
-			error_log( '[FCHub Stream] Failed to add Sentry breadcrumb: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Failed to add Sentry breadcrumb: ' . $e->getMessage() );
 		}
 
-		error_log( '[FCHub Stream] VideoUploadController::upload() - START' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[FCHub Stream] Request method: ' . $request->get_method() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[FCHub Stream] Request route: ' . $request->get_route() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[FCHub Stream] User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'VideoUploadController::upload() - START' );
+		log_debug( 'Request method: ' . $request->get_method() );
+		log_debug( 'Request route: ' . $request->get_route() );
+		log_debug( 'User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) );
 
 		// Check permissions - must be logged in user.
 		// PortalPolicy may not work correctly with FluentCommunity router, so check directly.
@@ -85,7 +87,7 @@ class VideoUploadController {
 				// Silently continue.
 			}
 
-			error_log( '[FCHub Stream] Upload rejected: User not logged in' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Upload rejected: User not logged in' );
 			return new WP_Error(
 				'unauthorized',
 				__( 'You must be logged in to upload videos.', 'fchub-stream' ),
@@ -95,7 +97,7 @@ class VideoUploadController {
 
 		// SECURITY LAYER 2: Check license before processing upload request.
 		if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
-			// Check file integrity before license check
+			// Check file integrity before license check.
 			if ( class_exists( 'FCHubStream\App\Services\TamperDetection' ) ) {
 				TamperDetection::check_file_integrity( 'upload' );
 			}
@@ -111,7 +113,7 @@ class VideoUploadController {
 							'http',
 							'warning',
 							array(
-								'user_id'      => get_current_user_id(),
+								'user_id'        => get_current_user_id(),
 								'license_active' => $license->is_active(),
 							)
 						);
@@ -120,7 +122,7 @@ class VideoUploadController {
 					// Silently continue.
 				}
 
-				error_log( '[FCHub Stream] Upload rejected: License not active or video upload not enabled' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_debug( 'Upload rejected: License not active or video upload not enabled' );
 				return new WP_Error(
 					'license_required',
 					__( 'Active FCHub Stream license required for video uploads.', 'fchub-stream' ),
@@ -128,10 +130,10 @@ class VideoUploadController {
 				);
 			}
 
-			// Additional validation: check if license is still valid (not expired)
+			// Additional validation: check if license is still valid (not expired).
 			$validation_result = $license->validate_license();
 			if ( is_wp_error( $validation_result ) ) {
-				error_log( '[FCHub Stream] License validation failed during upload: ' . $validation_result->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_error( 'License validation failed during upload: ' . $validation_result->get_error_message() );
 
 				// Safely add Sentry breadcrumb (don't break upload if Sentry fails).
 				try {
@@ -141,8 +143,8 @@ class VideoUploadController {
 							'http',
 							'warning',
 							array(
-								'user_id'      => get_current_user_id(),
-								'error_code'   => $validation_result->get_error_code(),
+								'user_id'       => get_current_user_id(),
+								'error_code'    => $validation_result->get_error_code(),
 								'error_message' => $validation_result->get_error_message(),
 							)
 						);
@@ -161,9 +163,9 @@ class VideoUploadController {
 
 		// Verify nonce for CSRF protection.
 		$nonce = $request->get_header( 'X-WP-Nonce' );
-		error_log( '[FCHub Stream] Nonce present: ' . ( $nonce ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'Nonce present: ' . ( $nonce ? 'YES' : 'NO' ) );
 		if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-			error_log( '[FCHub Stream] Upload rejected: Invalid nonce' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Upload rejected: Invalid nonce' );
 			return new WP_Error(
 				'invalid_nonce',
 				__( 'Invalid security token. Please refresh the page and try again.', 'fchub-stream' ),
@@ -171,7 +173,7 @@ class VideoUploadController {
 			);
 		}
 
-		error_log( '[FCHub Stream] Security checks passed' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'Security checks passed' );
 
 		// Get uploaded file.
 		// WordPress REST API handles file uploads differently - check $_FILES directly.
@@ -185,10 +187,10 @@ class VideoUploadController {
 		$file = $files['file'] ?? null;
 
 		// Log for debugging.
-		error_log( '[FCHub Stream] Upload request received. Files keys: ' . wp_json_encode( array_keys( $files ) ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'Upload request received. Files keys: ' . wp_json_encode( array_keys( $files ) ) );
 		if ( $file ) {
-			error_log( // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				'[FCHub Stream] File data: ' . wp_json_encode(
+			log_debug(
+				'File data: ' . wp_json_encode(
 					array(
 						'name'     => $file['name'] ?? 'not set',
 						'type'     => $file['type'] ?? 'not set',
@@ -201,7 +203,7 @@ class VideoUploadController {
 		}
 
 		if ( ! $file || ! isset( $file['tmp_name'] ) ) {
-			error_log( '[FCHub Stream] No file found in request' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'No file found in request' );
 			return new WP_Error(
 				'no_file',
 				__( 'No file uploaded.', 'fchub-stream' ),
@@ -212,7 +214,7 @@ class VideoUploadController {
 		// WordPress REST API doesn't use is_uploaded_file() validation.
 		// Instead, check if file exists and has valid error code.
 		if ( ! file_exists( $file['tmp_name'] ) ) {
-			error_log( '[FCHub Stream] File temp path does not exist: ' . $file['tmp_name'] ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'File temp path does not exist: ' . $file['tmp_name'] );
 			return new WP_Error(
 				'file_not_found',
 				__( 'Uploaded file not found.', 'fchub-stream' ),
@@ -223,7 +225,7 @@ class VideoUploadController {
 		// Check for upload errors.
 		if ( ! isset( $file['error'] ) || UPLOAD_ERR_OK !== $file['error'] ) {
 			$error_code = $file['error'] ?? 'unknown';
-			error_log( '[FCHub Stream] Upload error code: ' . $error_code ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'Upload error code: ' . $error_code );
 			return new WP_Error(
 				'upload_error',
 				$this->get_upload_error_message( $file['error'] ?? UPLOAD_ERR_NO_FILE ),
@@ -231,7 +233,7 @@ class VideoUploadController {
 			);
 		}
 
-		error_log( '[FCHub Stream] File passed validation, proceeding to upload service' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'File passed validation, proceeding to upload service' );
 
 		// Get context from request (post or comment).
 		$context = $request->get_param( 'context' );
@@ -242,12 +244,12 @@ class VideoUploadController {
 			$context = 'post';
 		}
 
-		error_log( '[FCHub Stream] Upload context: ' . $context ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'Upload context: ' . $context );
 
 		// Check if video in comments is enabled (if context is comment).
 		if ( 'comment' === $context ) {
 			if ( ! \FCHubStream\App\Services\StreamConfigService::is_comment_video_enabled() ) {
-				error_log( '[FCHub Stream] Upload rejected: Video in comments is disabled' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_debug( 'Upload rejected: Video in comments is disabled' );
 				return new WP_Error(
 					'comment_video_disabled',
 					__( 'Video uploads in comments are currently disabled.', 'fchub-stream' ),
@@ -255,7 +257,7 @@ class VideoUploadController {
 				);
 			}
 
-			error_log( '[FCHub Stream] Comment video enabled check passed' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Comment video enabled check passed' );
 		}
 
 		// Get upload settings (used for both posts and comments).
@@ -272,7 +274,7 @@ class VideoUploadController {
 		$file_size_mb = round( $file['size'] / ( 1024 * 1024 ), 2 );
 
 		if ( $file_size_mb > $max_size_mb ) {
-			error_log( '[FCHub Stream] Upload rejected: File too large (' . $file_size_mb . 'MB > ' . $max_size_mb . 'MB)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Upload rejected: File too large (' . $file_size_mb . 'MB > ' . $max_size_mb . 'MB)' );
 			return new WP_Error(
 				'file_too_large',
 				sprintf(
@@ -290,7 +292,7 @@ class VideoUploadController {
 		$file_extension  = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
 
 		if ( ! in_array( $file_extension, $allowed_formats, true ) ) {
-			error_log( '[FCHub Stream] Upload rejected: Invalid format (' . $file_extension . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Upload rejected: Invalid format (' . $file_extension . ')' );
 			return new WP_Error(
 				'invalid_format',
 				sprintf(
@@ -414,7 +416,7 @@ class VideoUploadController {
 		if ( $nonce && ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 			// Nonce invalid but user is logged in - log warning but allow request.
 			// This handles cases where nonce expires during long polling (15+ minutes).
-			error_log( '[FCHub Stream] Status check: Invalid nonce but user is logged in (ID: ' . get_current_user_id() . '). Allowing request due to long polling.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Status check: Invalid nonce but user is logged in (ID: ' . get_current_user_id() . '). Allowing request due to long polling.' );
 
 			// Capture to Sentry for monitoring nonce expiration during long polling.
 			try {
@@ -448,7 +450,7 @@ class VideoUploadController {
 		} elseif ( ! $nonce ) {
 			// No nonce provided - log warning but allow if user is logged in.
 			// Some frontend implementations may not send nonce for status checks.
-			error_log( '[FCHub Stream] Status check: No nonce provided but user is logged in (ID: ' . get_current_user_id() . '). Allowing request.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Status check: No nonce provided but user is logged in (ID: ' . get_current_user_id() . '). Allowing request.' );
 		}
 
 		if ( empty( $video_id ) ) {
@@ -474,7 +476,7 @@ class VideoUploadController {
 
 		// If found in database with 'ready' status, return immediately without API call.
 		if ( $db_status && 'ready' === $db_status['status'] ) {
-			error_log( '[FCHub Stream] Status check: Found ready status in database for video_id: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Status check: Found ready status in database for video_id: ' . $video_id );
 			return new WP_REST_Response(
 				array(
 					'success' => true,
@@ -511,11 +513,11 @@ class VideoUploadController {
 			$error_data  = $result->get_error_data();
 			$status_code = $error_data['status'] ?? 0;
 
-			error_log( '[FCHub Stream] Video status check failed - video_id: ' . $video_id . ', provider: ' . $provider . ', error_code: ' . $error_code . ', status_code: ' . $status_code ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'Video status check failed - video_id: ' . $video_id . ', provider: ' . $provider . ', error_code: ' . $error_code . ', status_code: ' . $status_code );
 
 			// For 404/500 errors, treat as pending (video may not be ready yet).
 			if ( in_array( $status_code, array( 404, 500 ), true ) ) {
-				error_log( '[FCHub Stream] Treating error as pending status (video may still be encoding)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_debug( 'Treating error as pending status (video may still be encoding)' );
 				return new WP_REST_Response(
 					array(
 						'success' => true,
@@ -652,10 +654,10 @@ class VideoUploadController {
 			}
 		} catch ( \Exception $e ) {
 			// Silently continue - don't break webhook processing if Sentry fails.
-			error_log( '[FCHub Stream] Failed to initialize Sentry for webhook: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Failed to initialize Sentry for webhook: ' . $e->getMessage() );
 		}
 
-		error_log( '[FCHub Stream] Webhook endpoint called - Method: ' . $request->get_method() . ', Route: ' . $request->get_route() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'Webhook endpoint called - Method: ' . $request->get_method() . ', Route: ' . $request->get_route() );
 
 		if ( empty( $provider ) ) {
 			try {
@@ -679,7 +681,7 @@ class VideoUploadController {
 				// Silently continue.
 			}
 
-			error_log( '[FCHub Stream] Webhook error: Provider missing' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'Webhook error: Provider missing' );
 			return new WP_Error(
 				'missing_provider',
 				__( 'Provider is required.', 'fchub-stream' ),
@@ -687,7 +689,7 @@ class VideoUploadController {
 			);
 		}
 
-		error_log( '[FCHub Stream] Webhook provider: ' . $provider ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'Webhook provider: ' . $provider );
 
 		// Verify webhook signature.
 		$verification_span = null;
@@ -728,7 +730,7 @@ class VideoUploadController {
 				// Silently continue.
 			}
 
-			error_log( '[FCHub Stream] Webhook signature verification failed: ' . $verification->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'Webhook signature verification failed: ' . $verification->get_error_message() );
 			return $verification;
 		}
 
@@ -771,7 +773,7 @@ class VideoUploadController {
 				// Silently continue.
 			}
 
-			error_log( '[FCHub Stream] Webhook error: Empty payload. Body: ' . $request->get_body() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( 'Webhook error: Empty payload. Body: ' . $request->get_body() );
 			return new WP_Error(
 				'invalid_payload',
 				__( 'Invalid webhook payload.', 'fchub-stream' ),
@@ -803,7 +805,7 @@ class VideoUploadController {
 			// Silently continue.
 		}
 
-		error_log( '[FCHub Stream] Webhook payload received: ' . wp_json_encode( $data ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		log_debug( 'Webhook payload received: ' . wp_json_encode( $data ) );
 
 		// Process webhook based on provider.
 		$processing_span = null;
@@ -911,7 +913,7 @@ class VideoUploadController {
 			}
 
 			if ( empty( $signature ) ) {
-				error_log( '[FCHub Stream] Webhook signature missing. Headers: ' . wp_json_encode( $request->get_headers() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_error( 'Webhook signature missing. Headers: ' . wp_json_encode( $request->get_headers() ) );
 				return new WP_Error(
 					'missing_signature',
 					__( 'Webhook signature is missing.', 'fchub-stream' ),
@@ -919,7 +921,7 @@ class VideoUploadController {
 				);
 			}
 
-			error_log( '[FCHub Stream] Webhook signature found: ' . substr( $signature, 0, 50 ) . '...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Webhook signature found: ' . substr( $signature, 0, 50 ) . '...' );
 
 			// Parse signature: time=1230811200,sig1=60493ec9388b44585a29543bcf0de62e....
 			// According to Cloudflare docs: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/.
@@ -930,7 +932,7 @@ class VideoUploadController {
 			}
 
 			if ( ! isset( $parts['time'] ) || ! isset( $parts['sig1'] ) ) {
-				error_log( '[FCHub Stream] Invalid signature format. Parts: ' . wp_json_encode( $parts ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_error( 'Invalid signature format. Parts: ' . wp_json_encode( $parts ) );
 				return new WP_Error(
 					'invalid_signature',
 					__( 'Invalid webhook signature format.', 'fchub-stream' ),
@@ -944,7 +946,7 @@ class VideoUploadController {
 			// Verify timestamp (prevent replay attacks - allow 5 minutes).
 			// Cloudflare docs recommend discarding requests with timestamps that are too old.
 			if ( abs( time() - $timestamp ) > 300 ) {
-				error_log( '[FCHub Stream] Webhook signature expired. Timestamp: ' . $timestamp . ', Current: ' . time() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_error( 'Webhook signature expired. Timestamp: ' . $timestamp . ', Current: ' . time() );
 				return new WP_Error(
 					'expired_signature',
 					__( 'Webhook signature has expired.', 'fchub-stream' ),
@@ -957,7 +959,7 @@ class VideoUploadController {
 			$secret = $config['cloudflare']['webhook_secret'] ?? '';
 
 			if ( empty( $secret ) ) {
-				error_log( '[FCHub Stream] Webhook secret not configured in settings' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_error( 'Webhook secret not configured in settings' );
 				return new WP_Error(
 					'missing_secret',
 					__( 'Webhook secret not configured.', 'fchub-stream' ),
@@ -975,7 +977,7 @@ class VideoUploadController {
 
 			// Use constant-time comparison to prevent timing attacks.
 			if ( ! hash_equals( $expected_sig, $sig_hash ) ) {
-				error_log( '[FCHub Stream] Signature verification failed. Expected: ' . substr( $expected_sig, 0, 20 ) . '..., Received: ' . substr( $sig_hash, 0, 20 ) . '...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_error( 'Signature verification failed. Expected: ' . substr( $expected_sig, 0, 20 ) . '..., Received: ' . substr( $sig_hash, 0, 20 ) . '...' );
 				return new WP_Error(
 					'invalid_signature',
 					__( 'Invalid webhook signature.', 'fchub-stream' ),
@@ -983,7 +985,7 @@ class VideoUploadController {
 				);
 			}
 
-			error_log( '[FCHub Stream] Webhook signature verified successfully' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Webhook signature verified successfully' );
 			return true;
 		}
 
@@ -1013,7 +1015,7 @@ class VideoUploadController {
 
 		// Log webhook receipt (only in debug mode to avoid log spam).
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( '[FCHub Stream] Cloudflare webhook received - video_id: ' . $video_uid . ', ready: ' . ( $ready_to_stream ? 'YES' : 'NO' ) . ', state: ' . $status_state ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Cloudflare webhook received - video_id: ' . $video_uid . ', ready: ' . ( $ready_to_stream ? 'YES' : 'NO' ) . ', state: ' . $status_state );
 		}
 
 		if ( empty( $video_uid ) ) {
@@ -1045,7 +1047,7 @@ class VideoUploadController {
 		// Handle error state - according to Cloudflare docs, status.state can be 'error'.
 		if ( 'error' === $status_state ) {
 			$error_msg = 'Video encoding failed - video_id: ' . $video_uid . ', error_code: ' . $err_reason_code . ', error_text: ' . $err_reason_text;
-			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( $error_msg );
 
 			// Track encoding failure in Sentry.
 			try {
@@ -1120,7 +1122,7 @@ class VideoUploadController {
 		// CRITICAL: Cloudflare may send webhook with readyToStream=true and playback URLs
 		// BUT pctComplete < 100, meaning not all quality levels are encoded yet.
 		// Manifest URLs may return 404 until pctComplete reaches 100.
-		// Reference: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks
+		// Reference: https://developers.cloudflare.com/stream/manage-video-library/using-webhooks.
 		if ( $ready_to_stream ) {
 			// Verify video has playback URLs AND pctComplete is 100 (all quality levels ready).
 			$has_playback = isset( $data['playback']['hls'] ) && ! empty( $data['playback']['hls'] );
@@ -1128,13 +1130,13 @@ class VideoUploadController {
 
 			// Log pctComplete for debugging.
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( '[FCHub Stream] Webhook pctComplete: ' . $pct_complete . '% for video_id: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				log_debug( 'Webhook pctComplete: ' . $pct_complete . '% for video_id: ' . $video_uid );
 			}
 
 			if ( $has_playback && $pct_complete >= 100 ) {
 				// Log only in debug mode.
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-					error_log( '[FCHub Stream] Video has playback URLs - marking as ready. Found ' . count( $posts ) . ' posts and ' . count( $comments ) . ' comments with video_id: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					log_debug( 'Video has playback URLs - marking as ready. Found ' . count( $posts ) . ' posts and ' . count( $comments ) . ' comments with video_id: ' . $video_uid );
 				}
 				$this->update_video_status_in_db( $video_uid, 'ready', $video_uid );
 
@@ -1187,10 +1189,10 @@ class VideoUploadController {
 				// Cloudflare sends webhooks with readyToStream=true when at least one quality level is ready,
 				// but pctComplete may still be < 100%. We wait for pctComplete=100% before marking as ready.
 				$reason = ! $has_playback ? 'no playback URLs' : 'pctComplete=' . $pct_complete . '% (< 100%)';
-				
+
 				// Only log locally (not to Sentry) - this is expected behavior during encoding.
 				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-					error_log( '[FCHub Stream] Video readyToStream=true but not fully encoded (' . $reason . ') - keeping as pending. Video ID: ' . $video_uid ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					log_debug( 'Video readyToStream=true but not fully encoded (' . $reason . ') - keeping as pending. Video ID: ' . $video_uid );
 				}
 
 				// Only track in Sentry if there's a real problem (missing playback URLs).
@@ -1468,7 +1470,7 @@ class VideoUploadController {
 
 		// Log for debugging.
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( '[FCHub Stream] update_video_status_in_db - video_uid: ' . $video_uid . ', video_id: ' . ( $video_id ?? 'null' ) . ', status: ' . $status . ', found posts: ' . count( $posts ) . ', found comments: ' . count( $comments ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'update_video_status_in_db - video_uid: ' . $video_uid . ', video_id: ' . ( $video_id ?? 'null' ) . ', status: ' . $status . ', found posts: ' . count( $posts ) . ', found comments: ' . count( $comments ) );
 		}
 
 		// Update posts.
@@ -1498,7 +1500,7 @@ class VideoUploadController {
 										$error_data   = $video_info->get_error_data();
 										$status_code  = $error_data['status'] ?? 0;
 
-										error_log( '[FCHub Stream] Video not found in Cloudflare Stream. Video ID: ' . $video_id . ', HTTP Status: ' . $status_code ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+										log_error( 'Video not found in Cloudflare Stream. Video ID: ' . $video_id . ', HTTP Status: ' . $status_code );
 
 										// Track in Sentry.
 										try {
@@ -1526,16 +1528,16 @@ class VideoUploadController {
 									} elseif ( isset( $video_info['readyToStream'] ) && ! $video_info['readyToStream'] ) {
 										// Video exists but not ready yet.
 										$video_exists = false;
-										error_log( '[FCHub Stream] Video exists but not readyToStream. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+										log_debug( 'Video exists but not readyToStream. Video ID: ' . $video_id );
 									} elseif ( empty( $video_info['playback']['hls'] ) ) {
 										// Video exists but no playback URLs.
 										$video_exists = false;
-										error_log( '[FCHub Stream] Video exists but no playback URLs. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+										log_debug( 'Video exists but no playback URLs. Video ID: ' . $video_id );
 									}
 								}
 							} catch ( \Exception $e ) {
 								// Log error but continue - will try to generate HTML anyway.
-								error_log( '[FCHub Stream] Error checking video existence: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+								log_error( 'Error checking video existence: ' . $e->getMessage() );
 								try {
 									if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
 										SentryService::capture_exception( $e );
@@ -1552,7 +1554,7 @@ class VideoUploadController {
 
 							// Log if HTML generation failed or returned empty.
 							if ( empty( $player_html ) || strpos( $player_html, 'not available' ) !== false ) {
-								error_log( '[FCHub Stream] Failed to generate player HTML for video_id: ' . $video_id . ', provider: ' . $provider ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+								log_error( 'Failed to generate player HTML for video_id: ' . $video_id . ', provider: ' . $provider );
 
 								// Track in Sentry.
 								try {
@@ -1587,7 +1589,7 @@ class VideoUploadController {
 							}
 						} else {
 							// Video doesn't exist or not ready - keep as pending.
-							error_log( '[FCHub Stream] Video not ready or not found, keeping status as pending. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+							log_debug( 'Video not ready or not found, keeping status as pending. Video ID: ' . $video_id );
 							// Don't update status - keep as pending so polling can retry.
 						}
 					} elseif ( 'failed' === $status ) {
@@ -1605,13 +1607,13 @@ class VideoUploadController {
 					);
 
 					if ( false === $updated ) {
-						error_log( '[FCHub Stream] Failed to update post meta for post ID: ' . $post->id . ', video_id: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+						log_error( 'Failed to update post meta for post ID: ' . $post->id . ', video_id: ' . $video_id );
 					} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-						error_log( '[FCHub Stream] Successfully updated post ID: ' . $post->id . ' with video_id: ' . $video_id . ', status: ' . $status ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+						log_debug( 'Successfully updated post ID: ' . $post->id . ' with video_id: ' . $video_id . ', status: ' . $status );
 					}
 				} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 					// Log if video_id doesn't match.
-					error_log( '[FCHub Stream] Post ID ' . $post->id . ' has video_id mismatch. Meta video_id: ' . ( $meta_video_id ?? 'null' ) . ', expected: ' . $video_uid . ' or ' . $search_video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					log_debug( 'Post ID ' . $post->id . ' has video_id mismatch. Meta video_id: ' . ( $meta_video_id ?? 'null' ) . ', expected: ' . $video_uid . ' or ' . $search_video_id );
 				}
 			}
 		}
@@ -1643,7 +1645,7 @@ class VideoUploadController {
 										$error_data   = $video_info->get_error_data();
 										$status_code  = $error_data['status'] ?? 0;
 
-										error_log( '[FCHub Stream] Video not found in Cloudflare Stream (comment). Video ID: ' . $video_id . ', HTTP Status: ' . $status_code ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+										log_error( 'Video not found in Cloudflare Stream (comment). Video ID: ' . $video_id . ', HTTP Status: ' . $status_code );
 
 										// Track in Sentry.
 										try {
@@ -1671,16 +1673,16 @@ class VideoUploadController {
 									} elseif ( isset( $video_info['readyToStream'] ) && ! $video_info['readyToStream'] ) {
 										// Video exists but not ready yet.
 										$video_exists = false;
-										error_log( '[FCHub Stream] Video exists but not readyToStream (comment). Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+										log_debug( 'Video exists but not readyToStream (comment). Video ID: ' . $video_id );
 									} elseif ( empty( $video_info['playback']['hls'] ) ) {
 										// Video exists but no playback URLs.
 										$video_exists = false;
-										error_log( '[FCHub Stream] Video exists but no playback URLs (comment). Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+										log_debug( 'Video exists but no playback URLs (comment). Video ID: ' . $video_id );
 									}
 								}
 							} catch ( \Exception $e ) {
 								// Log error but continue - will try to generate HTML anyway.
-								error_log( '[FCHub Stream] Error checking video existence (comment): ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+								log_error( 'Error checking video existence (comment): ' . $e->getMessage() );
 								try {
 									if ( class_exists( 'FCHubStream\App\Services\SentryService' ) ) {
 										SentryService::capture_exception( $e );
@@ -1697,7 +1699,7 @@ class VideoUploadController {
 
 							// Log if HTML generation failed or returned empty.
 							if ( empty( $player_html ) || strpos( $player_html, 'not available' ) !== false ) {
-								error_log( '[FCHub Stream] Failed to generate player HTML for comment video_id: ' . $video_id . ', provider: ' . $provider ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+								log_error( 'Failed to generate player HTML for comment video_id: ' . $video_id . ', provider: ' . $provider );
 							}
 
 							// Don't double-wrap - get_player_html() already returns wrapped HTML.
@@ -1710,7 +1712,7 @@ class VideoUploadController {
 							}
 						} else {
 							// Video doesn't exist or not ready - keep as pending.
-							error_log( '[FCHub Stream] Video not ready or not found (comment), keeping status as pending. Video ID: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+							log_debug( 'Video not ready or not found (comment), keeping status as pending. Video ID: ' . $video_id );
 							// Don't update status - keep as pending so polling can retry.
 						}
 					} elseif ( 'failed' === $status ) {
@@ -1728,9 +1730,9 @@ class VideoUploadController {
 					);
 
 					if ( false === $updated ) {
-						error_log( '[FCHub Stream] Failed to update comment meta for comment ID: ' . $comment_row->id . ', video_id: ' . $video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+						log_error( 'Failed to update comment meta for comment ID: ' . $comment_row->id . ', video_id: ' . $video_id );
 					} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-						error_log( '[FCHub Stream] Successfully updated comment ID: ' . $comment_row->id . ' with video_id: ' . $video_id . ', status: ' . $status ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+						log_debug( 'Successfully updated comment ID: ' . $comment_row->id . ' with video_id: ' . $video_id . ', status: ' . $status );
 					}
 				}
 			}
@@ -1794,7 +1796,7 @@ class VideoUploadController {
 
 		if ( $nonce && ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 			// Nonce was provided but invalid - reject request.
-			error_log( '[FCHub Stream] Track event nonce verification failed. Nonce present: YES but invalid, User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) . ', User can manage_options: ' . ( $is_admin ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Track event nonce verification failed. Nonce present: YES but invalid, User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) . ', User can manage_options: ' . ( $is_admin ? 'YES' : 'NO' ) );
 
 			return new WP_Error(
 				'invalid_nonce',
@@ -1807,7 +1809,7 @@ class VideoUploadController {
 		// - For admin users: allow it (admin app may not send nonce, but user is authenticated).
 		// - For regular users: require nonce for CSRF protection.
 		if ( ! $nonce && ! $is_admin ) {
-			error_log( '[FCHub Stream] Track event nonce missing for non-admin user. User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_debug( 'Track event nonce missing for non-admin user. User logged in: ' . ( is_user_logged_in() ? 'YES' : 'NO' ) );
 
 			return new WP_Error(
 				'missing_nonce',
@@ -1856,7 +1858,7 @@ class VideoUploadController {
 		if ( null === $data && ! empty( $raw_body ) && json_last_error() !== JSON_ERROR_NONE ) {
 			// Log error and send to Sentry.
 			$error_msg = 'Track event JSON decode failed: ' . json_last_error_msg();
-			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( $error_msg );
 
 			// Track in Sentry.
 			try {
@@ -1886,7 +1888,7 @@ class VideoUploadController {
 		// If data is null (empty body) or not an array, return error.
 		if ( null === $data || ! is_array( $data ) ) {
 			$error_msg = 'Track event data is null or not array';
-			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( $error_msg );
 
 			// Track in Sentry.
 			try {
@@ -1915,7 +1917,7 @@ class VideoUploadController {
 
 		if ( empty( $data['event'] ) ) {
 			$error_msg = 'Track event missing event name. Data keys: ' . wp_json_encode( array_keys( $data ) );
-			error_log( '[FCHub Stream] ' . $error_msg ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			log_error( $error_msg );
 
 			// Track in Sentry.
 			try {

@@ -11,6 +11,7 @@ namespace FCHubStream\App\Hooks\PortalIntegration;
 
 use FCHubStream\App\Services\StreamConfigService;
 use FCHubStream\App\Services\StreamLicenseManager;
+use function FCHubStream\App\Utils\log_error;
 
 /**
  * Class ConfigProvider
@@ -44,46 +45,44 @@ class ConfigProvider {
 	 */
 	public function add_portal_vars( array $vars ): array {
 		// SECURITY LAYER 1: Check license before exposing any upload functionality to frontend.
-		$license_active = false;
+		$license_active      = false;
 		$license_check_error = null;
-		
-		// Ensure autoloader is loaded (might not be loaded if hook fires early)
+
+		// Ensure autoloader is loaded (might not be loaded if hook fires early).
 		if ( ! class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
-			// Try to load autoloader if it exists
+			// Try to load autoloader if it exists.
 			$autoload_path = dirname( dirname( dirname( __DIR__ ) ) ) . '/vendor/autoload.php';
 			if ( file_exists( $autoload_path ) ) {
 				require_once $autoload_path;
 			}
 		}
-		
-		// Check if StreamLicenseManager class exists
+
+		// Check if StreamLicenseManager class exists.
 		if ( ! class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
 			$license_check_error = 'StreamLicenseManager class not found';
+		} elseif ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
+			// Check if parent class exists (SDK might not be loaded).
+			$license_check_error = 'License SDK not loaded';
 		} else {
-			// Check if parent class exists (SDK might not be loaded)
-			if ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
-				$license_check_error = 'License SDK not loaded';
-			} else {
-				try {
-					$license = new StreamLicenseManager();
-					$is_active = $license->is_active();
-					$can_upload = $license->can_upload_video();
-					$license_active = $is_active && $can_upload;
-				} catch ( \Throwable $e ) {
-					error_log( '[FCHub Stream] ConfigProvider: License check failed with exception: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					$license_check_error = $e->getMessage();
-				}
+			try {
+				$license        = new StreamLicenseManager();
+				$is_active      = $license->is_active();
+				$can_upload     = $license->can_upload_video();
+				$license_active = $is_active && $can_upload;
+			} catch ( \Throwable $e ) {
+				log_error( 'ConfigProvider: License check failed with exception: ' . $e->getMessage() );
+				$license_check_error = $e->getMessage();
 			}
 		}
 
 		// If license is not active, disable all upload functionality.
 		if ( ! $license_active ) {
-			
 			$vars['fchubStreamSettings'] = array(
 				'enabled'       => false,
 				'provider'      => '',
 				'rest_url'      => rest_url( 'fluent-community/v2/stream' ),
 				'rest_nonce'    => wp_create_nonce( 'wp_rest' ),
+				'debug'         => defined( 'WP_DEBUG' ) && WP_DEBUG, // Enable debug logging when WP_DEBUG is on.
 				'upload'        => array(
 					'max_file_size'        => 0,
 					'allowed_formats'      => array(),
@@ -119,6 +118,7 @@ class ConfigProvider {
 			'provider'      => $enabled_provider,
 			'rest_url'      => rest_url( 'fluent-community/v2/stream' ),
 			'rest_nonce'    => wp_create_nonce( 'wp_rest' ),
+			'debug'         => defined( 'WP_DEBUG' ) && WP_DEBUG, // Enable debug logging when WP_DEBUG is on.
 			'upload'        => array(
 				'max_file_size'        => $max_file_size, // MB.
 				'allowed_formats'      => $upload_settings['allowed_formats'] ?? array( 'mp4', 'mov', 'webm', 'avi' ),

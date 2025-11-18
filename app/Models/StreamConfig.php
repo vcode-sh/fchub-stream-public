@@ -105,8 +105,9 @@ class StreamConfig {
 			// If arrays are equal, update_option() correctly returned false (no change).
 			// If arrays differ, this is a real error.
 			$current_sanitized = ConfigTransformer::sanitize( $current );
-			// Use serialize for deep comparison since arrays can have nested structures.
-			if ( serialize( $sanitized ) === serialize( $current_sanitized ) ) {
+			// Use JSON for deep comparison since arrays can have nested structures.
+			// JSON is safer than serialize() and avoids PHP Object Injection vulnerabilities.
+			if ( wp_json_encode( $sanitized ) === wp_json_encode( $current_sanitized ) ) {
 				// Value hasn't changed - this is OK, not an error.
 				return true;
 			}

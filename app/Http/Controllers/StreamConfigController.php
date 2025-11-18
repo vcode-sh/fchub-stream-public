@@ -52,7 +52,7 @@ class StreamConfigController {
 		// If license is not active, return empty config to prevent showing provider settings.
 		$license_active = false;
 		if ( class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
-			$license = new StreamLicenseManager();
+			$license        = new StreamLicenseManager();
 			$license_active = $license->is_active();
 		}
 

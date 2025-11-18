@@ -19,6 +19,7 @@ use Sentry\Tracing\TransactionContext;
 use Sentry\Tracing\SpanStatus;
 use Sentry\SentrySdk;
 use Sentry\Severity;
+use function FCHubStream\App\Utils\log_error;
 use function Sentry\init;
 use function Sentry\captureException;
 use function Sentry\captureMessage;
@@ -138,7 +139,7 @@ class SentryService {
 			return true;
 		} catch ( \Exception $e ) {
 			// Silently fail - don't break plugin if Sentry fails.
-			error_log( '[FCHub Stream] Failed to initialize Sentry: ' . $e->getMessage() );
+			log_error( 'Failed to initialize Sentry: ' . $e->getMessage() );
 			return false;
 		}
 	}
@@ -272,11 +273,11 @@ class SentryService {
 	 * @since 1.0.0
 	 *
 	 * @param \Sentry\Event          $event Event to be sent.
-	 * @param \Sentry\EventHint|null $hint Optional event hint.
+	 * @param \Sentry\EventHint|null $_hint Optional event hint (unused but required by Sentry interface).
 	 *
 	 * @return \Sentry\Event|null Event to send, or null to discard.
 	 */
-	public static function before_send( \Sentry\Event $event, ?\Sentry\EventHint $hint = null ): ?\Sentry\Event {
+	public static function before_send( \Sentry\Event $event, ?\Sentry\EventHint $_hint = null ): ?\Sentry\Event { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Required by Sentry interface.
 		// Only capture errors that originate from fchub-stream plugin.
 		// Check if at least one frame in stacktrace is from our plugin directory.
 		$is_our_error = false;
@@ -580,7 +581,7 @@ class SentryService {
 			captureException( $exception );
 		} catch ( \Exception $e ) {
 			// Silently fail - don't break plugin if Sentry fails.
-			error_log( '[FCHub Stream] Failed to capture exception to Sentry: ' . $e->getMessage() );
+			log_error( 'Failed to capture exception to Sentry: ' . $e->getMessage() );
 		}
 	}
 
@@ -616,7 +617,7 @@ class SentryService {
 			captureMessage( $message, $severity );
 		} catch ( \Exception $e ) {
 			// Silently fail - don't break plugin if Sentry fails.
-			error_log( '[FCHub Stream] Failed to capture message to Sentry: ' . $e->getMessage() );
+			log_error( 'Failed to capture message to Sentry: ' . $e->getMessage() );
 		}
 	}
 
@@ -725,7 +726,7 @@ class SentryService {
 		}
 
 		try {
-			// Sentry SDK v4 API: addBreadcrumb($category, $message, $metadata, $level, $type, $timestamp).
+			// Sentry SDK v4 API: addBreadcrumb($category, $message, $metadata, $level, $type, $timestamp). // phpcs:ignore Squiz.PHP.CommentedOutCode.Found -- API documentation.
 			addBreadcrumb(
 				$category,  // Category string.
 				$message,   // Message string.
@@ -734,7 +735,7 @@ class SentryService {
 			);
 		} catch ( \Exception $e ) {
 			// Silently fail - don't break plugin if Sentry fails.
-			error_log( '[FCHub Stream] Failed to add breadcrumb to Sentry: ' . $e->getMessage() );
+			log_error( 'Failed to add breadcrumb to Sentry: ' . $e->getMessage() );
 		}
 	}
 
@@ -769,7 +770,7 @@ class SentryService {
 			return $transaction;
 		} catch ( \Exception $e ) {
 			// Silently fail - don't break plugin if Sentry fails.
-			error_log( '[FCHub Stream] Failed to start transaction in Sentry: ' . $e->getMessage() );
+			log_error( 'Failed to start transaction in Sentry: ' . $e->getMessage() );
 			return null;
 		}
 	}
@@ -802,7 +803,7 @@ class SentryService {
 			return $transaction->startChild( $context );
 		} catch ( \Exception $e ) {
 			// Silently fail - don't break plugin if Sentry fails.
-			error_log( '[FCHub Stream] Failed to start span in Sentry: ' . $e->getMessage() );
+			log_error( 'Failed to start span in Sentry: ' . $e->getMessage() );
 			return null;
 		}
 	}
@@ -833,7 +834,7 @@ class SentryService {
 			);
 		} catch ( \Exception $e ) {
 			// Silently fail.
-			error_log( '[FCHub Stream] Failed to set Sentry tags: ' . $e->getMessage() );
+			log_error( 'Failed to set Sentry tags: ' . $e->getMessage() );
 		}
 	}
 
@@ -862,7 +863,7 @@ class SentryService {
 			);
 		} catch ( \Exception $e ) {
 			// Silently fail.
-			error_log( '[FCHub Stream] Failed to set Sentry context: ' . $e->getMessage() );
+			log_error( 'Failed to set Sentry context: ' . $e->getMessage() );
 		}
 	}
 
@@ -891,7 +892,7 @@ class SentryService {
 			);
 		} catch ( \Exception $e ) {
 			// Silently fail.
-			error_log( '[FCHub Stream] Failed to set Sentry fingerprint: ' . $e->getMessage() );
+			log_error( 'Failed to set Sentry fingerprint: ' . $e->getMessage() );
 		}
 	}
 

@@ -21,6 +21,7 @@ use FCHubStream\App\Models\StreamConfig;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
+use function FCHubStream\App\Utils\log_debug;
 
 /**
  * Cloudflare Stream Configuration Controller.
@@ -229,7 +230,7 @@ class CloudflareConfigController extends ProviderConfigController {
 
 			if ( empty( $webhook_secret ) ) {
 				// phpcs:disable WordPress.PHP.DevelopmentFunctions -- Debug logging for webhook activation.
-				error_log( '[FCHub Stream] CloudflareConfigController::activate_webhook() - No secret in response: ' . print_r( $webhook_result, true ) );
+				log_debug( 'CloudflareConfigController::activate_webhook() - No secret in response: ' . print_r( $webhook_result, true ) );
 				// phpcs:enable WordPress.PHP.DevelopmentFunctions
 				return new WP_Error(
 					'no_secret',
