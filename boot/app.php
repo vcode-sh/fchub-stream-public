@@ -61,30 +61,15 @@ return function ( $file ) {
 		}
 	}
 
-	// Fix SDK symlink if relative symlink doesn't work (common in Docker environments).
+	// Note: SDK is now included as full copy in vendor/ (not symlink).
+	// Composer autoloader should handle loading automatically.
+	// If class still doesn't exist after autoloader, log error for debugging.
 	if ( defined( 'FCHUB_STREAM_DIR' ) && ! class_exists( 'FCHub\License\License_Manager' ) ) {
-		$sdk_symlink = FCHUB_STREAM_DIR . 'vendor/fchub/license-sdks-php';
-
-		// Check if symlink exists but points to wrong location.
-		if ( is_link( $sdk_symlink ) ) {
-			$current_target = readlink( $sdk_symlink );
-			$sdk_file       = $sdk_symlink . '/src/License_Manager.php';
-
-			// If relative symlink doesn't resolve, try to fix it.
-			if ( ! file_exists( $sdk_file ) ) {
-				// Try Docker path first.
-				$docker_target = '/var/www/html/fchub-licenses-sdks/packages/php';
-				if ( file_exists( $docker_target . '/src/License_Manager.php' ) ) {
-					wp_delete_file( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-					@symlink( $docker_target, $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				} else {
-					// Try to resolve relative path.
-					$resolved_path = realpath( dirname( $sdk_symlink ) . '/' . $current_target );
-					if ( $resolved_path && file_exists( $resolved_path . '/src/License_Manager.php' ) ) {
-						wp_delete_file( $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-						@symlink( $resolved_path, $sdk_symlink ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-					}
-				}
+		$sdk_file = FCHUB_STREAM_DIR . 'vendor/fchub/license-sdks-php/src/License_Manager.php';
+		if ( ! file_exists( $sdk_file ) ) {
+			// Log error but don't break plugin - license features will be disabled.
+			if ( function_exists( 'log_debug' ) ) {
+				log_debug( 'License SDK not found at: ' . $sdk_file );
 			}
 		}
 	}
