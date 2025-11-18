@@ -796,7 +796,7 @@ class VideoUploadService {
 		$library_id = $bunny['library_id'] ?? '';
 
 		// Generate player URL and HTML.
-		$player_url  = "https://iframe.mediadelivery.net/embed/{$library_id}/{$video_id}";
+		$player_url  = "https://iframe.mediadelivery.net/embed/{$library_id}/{$video_id}?autoplay=false";
 		$player_html = sprintf(
 			'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; autoplay; encrypted-media; gyroscope;" allowfullscreen="true"></iframe>',
 			esc_url( $player_url )
@@ -940,7 +940,7 @@ class VideoUploadService {
 				);
 			}
 
-			$player_url = "https://iframe.mediadelivery.net/embed/{$library_id}/{$video_id}";
+			$player_url = "https://iframe.mediadelivery.net/embed/{$library_id}/{$video_id}?autoplay=false";
 
 			return sprintf(
 				'<iframe src="%s" style="border: none; width: 100%%; aspect-ratio: 16/9;" allow="accelerometer; autoplay; encrypted-media; gyroscope;" allowfullscreen="true"></iframe>',

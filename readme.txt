@@ -67,6 +67,7 @@ If your enterprise can handle video streaming built by one dev who hates media l
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
 
 = 0.9.2 - 2025-11-18 =
+* Disabled autoplay for Bunny.net video players - Videos now require user interaction to start. Because surprise audio is annoying.
 * Fixed missing vendor/ directory in release ZIPs - Users don't need composer. Plugin just works. As intended.
 * GitHub Actions now properly packages all dependencies - No more "Class not found" errors.
 * Analytics performance improvements - Reduced unnecessary API calls and optimized data processing.

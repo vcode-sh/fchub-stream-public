@@ -293,7 +293,7 @@ class VideoPlayerRenderer {
 				$player_html = sprintf(
 					'<div class="fchub-stream-player-wrapper" data-video-id="%s" data-provider="bunny_stream" style="position: relative; padding-bottom: 56.25%%; height: 0; overflow: hidden;">
 						<iframe
-							src="https://iframe.mediadelivery.net/embed/%s/%s"
+							src="https://iframe.mediadelivery.net/embed/%s/%s?autoplay=false"
 							style="position: absolute; top: 0; left: 0; width: 100%%; height: 100%%; border: 0;"
 							allow="accelerometer; gyroscope; autoplay; encrypted-media;"
 							allowfullscreen="true">

@@ -17,6 +17,10 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ### Fixed
 
+**Bunny.net Video Autoplay Disabled**
+- Disabled autoplay for Bunny.net video players. Videos now require user interaction to start. Because surprise audio is annoying.
+- Added `?autoplay=false` parameter to all Bunny.net iframe embed URLs. Consistent behavior across all player generation methods.
+
 **Release Package Now Includes All Dependencies**
 - Fixed missing `vendor/` directory in release ZIPs. Users don't need composer. Plugin just works. As intended.
 - GitHub Actions now properly packages all dependencies. No more "Class not found" errors. Revolutionary? No. Expected? Yes.
