@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.9.0
 Requires PHP: 8.3
-Stable tag: 0.9.2
+Stable tag: 0.9.3
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -65,6 +65,12 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.9.3 - 2025-11-19 =
+* Videos no longer disappear when editing posts - Used `array_key_exists()` instead of `isset()` to differentiate between "user didn't touch media" and "user explicitly deleted it".
+* Video deletion actually works now - Two hooks were fighting over the same video. Added global flag for hooks to communicate.
+* Upload modal now inherits FluentCommunity's dark mode - Because uploading videos at 2am in blinding white wasn't the vibe.
+* Code quality improvements - Fixed WordPress Coding Standards violations.
 
 = 0.9.2 - 2025-11-18 =
 * Disabled autoplay for Bunny.net video players - Videos now require user interaction to start. Because surprise audio is annoying.

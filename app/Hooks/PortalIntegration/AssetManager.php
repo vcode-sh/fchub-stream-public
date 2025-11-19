@@ -237,6 +237,36 @@ class AssetManager {
 						font-size: 12px;
 					}
 				}
+
+				/* CRITICAL: Hide "Remove Media" link in edit feed dialogs when FCHub Stream video exists */
+				/* Prevents accidental video removal during post editing */
+				.el-dialog.fcom_feed_edit_dialog .feed_media_iframe_html a[href*="remove"],
+				.el-dialog.fcom_feed_edit_dialog .feed_media_iframe_html .remove-media,
+				.el-dialog.fcom_feed_edit_dialog .feed_media_iframe_html button[class*="remove"],
+				.el-dialog.fcom_feed_modal .feed_media_iframe_html a[href*="remove"],
+				.el-dialog.fcom_feed_modal .feed_media_iframe_html .remove-media,
+				.el-dialog.fcom_feed_modal .feed_media_iframe_html button[class*="remove"],
+				.el-dialog[data-feed-id] .feed_media_iframe_html a[href*="remove"],
+				.el-dialog[data-feed-id] .feed_media_iframe_html .remove-media,
+				.el-dialog[data-feed-id] .feed_media_iframe_html button[class*="remove"] {
+					display: none !important;
+				}
+
+				/* Hide "Remove Media" text/link specifically for FCHub Stream videos */
+				.el-dialog.fcom_feed_edit_dialog iframe[src*="cloudflarestream.com"] ~ a,
+				.el-dialog.fcom_feed_edit_dialog iframe[src*="cloudflarestream.com"] ~ .remove-media,
+				.el-dialog.fcom_feed_edit_dialog iframe[src*="bunny.net"] ~ a,
+				.el-dialog.fcom_feed_edit_dialog iframe[src*="bunny.net"] ~ .remove-media,
+				.el-dialog.fcom_feed_modal iframe[src*="cloudflarestream.com"] ~ a,
+				.el-dialog.fcom_feed_modal iframe[src*="cloudflarestream.com"] ~ .remove-media,
+				.el-dialog.fcom_feed_modal iframe[src*="bunny.net"] ~ a,
+				.el-dialog.fcom_feed_modal iframe[src*="bunny.net"] ~ .remove-media,
+				.el-dialog[data-feed-id] iframe[src*="cloudflarestream.com"] ~ a,
+				.el-dialog[data-feed-id] iframe[src*="cloudflarestream.com"] ~ .remove-media,
+				.el-dialog[data-feed-id] iframe[src*="bunny.net"] ~ a,
+				.el-dialog[data-feed-id] iframe[src*="bunny.net"] ~ .remove-media {
+					display: none !important;
+				}
 			</style>';
 	}
 

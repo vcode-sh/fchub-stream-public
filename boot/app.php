@@ -158,6 +158,38 @@ return function ( $file ) {
 					1
 				);
 
+				// Hook into feed update filter to capture old meta before update.
+				add_filter(
+					'fluent_community/feed/update_data',
+					array( $video_deletion_handler, 'capture_feed_meta_before_update' ),
+					10,
+					2
+				);
+
+				// Hook into feed update action to detect and delete removed videos.
+				add_action(
+					'fluent_community/feed/updated',
+					array( $video_deletion_handler, 'handle_feed_updated' ),
+					10,
+					2
+				);
+
+				// Hook into comment update filter to capture old meta before update.
+				add_filter(
+					'fluent_community/comment/update_comment_data',
+					array( $video_deletion_handler, 'capture_comment_meta_before_update' ),
+					10,
+					3
+				);
+
+				// Hook into comment update action to detect and delete removed videos.
+				add_action(
+					'fluent_community/comment_updated',
+					array( $video_deletion_handler, 'handle_comment_updated' ),
+					10,
+					2
+				);
+
 				log_debug( 'Video deletion hooks registered early (plugins_loaded)' );
 			}
 

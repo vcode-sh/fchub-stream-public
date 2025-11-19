@@ -4,6 +4,54 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.9.3] - 2025-11-19
+
+### Changed
+
+**Upload Modal Now Supports Dark Mode**
+- Upload modal now inherits FluentCommunity's dark mode. Replaced hardcoded light colors with theme CSS variables.
+- Because uploading videos at 2am in blinding white wasn't the vibe. Auto-detects light/dark theme and matches it.
+
+### Fixed
+
+**Videos No Longer Disappear When Editing Posts**
+- Fixed videos vanishing after editing posts. Turns out `isset()` and `null` aren't the same thing. PHP 101 but easy to forget.
+- Used `array_key_exists()` instead of `isset()` to differentiate between "user didn't touch media" and "user explicitly deleted it". Revolutionary? No. Correct? Finally.
+- Built because losing your video after fixing a typo in your post is not a feature. It's a bug.
+
+**Video Deletion Actually Works Now**
+- Fixed videos refusing to delete when you removed them from posts. Two hooks were fighting over the same video. Hook #1 deleted it. Hook #2 restored it. Classic.
+- Added global flag for hooks to communicate. Now they work together instead of against each other.
+- Videos delete from post AND Cloudflare when you remove them. No leftovers. Clean slate.
+
+**Code Quality Improvements**
+- Fixed WordPress Coding Standards violations. Added proper comments, aligned variables, ignored debug warnings correctly.
+- Code now passes `phpcs` without errors. Does this make it better? Debatable. Does it make WordPress happy? Apparently.
+
+### Notes
+
+**Bug Discovery:**
+- Reported by [Jacob Windham](https://github.com/vcode-sh/fchub-stream-public/issues). Videos disappearing after editing posts. Thank you for actually testing this and reporting it instead of silently suffering.
+
+**What Was Broken:**
+- Edit post with video → save → video disappeared. `isset($var)` when `$var = null` returns false. We thought user didn't send media. They sent null.
+- Remove video from post → save → video stayed in post AND Cloudflare. Hook #1 deleted it. Hook #2 saw "no media in request" and restored existing video. Teamwork at its finest.
+
+**The Fix:**
+- `array_key_exists()` checks if key exists regardless of value. `null` is a value. Not the same as missing key.
+- Global flag between hooks: "Hey Hook #2, Hook #1 already deleted this video. Don't restore it." Communication works.
+- Cloudflare API cleanup verified. DELETE returns 200. Video gone. Database updated. Works as intended.
+
+**Testing Results:**
+- Test 1 (Edit without changing video): ✅ Video stays
+- Test 2 (Replace video): ⏸️ Skipped (frontend issue, not backend)
+- Test 3 (Delete video): ✅ Video deletes from post + Cloudflare
+- Test 4 (Create new post): ✅ Works
+- Test 5 (Edit post without video): ✅ No errors
+- Test 6 (Multiple edits): ✅ Video survives 3+ edits
+
+Built because editing posts shouldn't require sacrificing videos to the WordPress gods.
+
 ## [0.9.2] - 2025-11-18
 
 ### New
@@ -309,6 +357,8 @@ Part of [FCHub.co](https://fchub.co) - FluentCommunity tools that actually work.
 
 ---
 
+[0.9.3]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.9.3
+[0.9.2]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.9.2
 [0.9.1]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.9.1
 [0.9.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.9.0
 [0.2.0]: https://github.com/vcode-sh/fchub-stream-public/releases/tag/v0.2.0

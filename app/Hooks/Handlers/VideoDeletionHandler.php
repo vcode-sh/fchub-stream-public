@@ -22,15 +22,30 @@ use FCHubStream\App\Services\SentryService;
 /**
  * Class VideoDeletionHandler
  *
- * Handles automatic video deletion when posts or comments with videos are deleted.
- * Integrates with FluentCommunity deletion hooks to ensure videos are cleaned up
- * from external providers (Cloudflare Stream or Bunny.net).
+ * Handles automatic video deletion when posts or comments with videos are deleted
+ * or updated (when video is removed during edit). Integrates with FluentCommunity
+ * hooks to ensure videos are cleaned up from external providers (Cloudflare Stream
+ * or Bunny.net).
+ *
+ * Supports three scenarios:
+ * 1. Post/Comment deletion - deletes video when post/comment is deleted
+ * 2. Post/Comment update with video removal - detects when video is removed during edit
+ * 3. Post/Comment update with video replacement - deletes old video when replaced with new one
  *
  * @package FCHub_Stream
  * @subpackage Hooks\Handlers
  * @since 1.0.0
  */
 class VideoDeletionHandler {
+	/**
+	 * Temporary storage for old meta before feed/comment updates.
+	 * Used to compare old vs new meta and detect video removal.
+	 *
+	 * @since 1.0.0
+	 * @var array<string, array> Key: feed/comment ID, Value: old meta array.
+	 */
+	private static $old_meta_cache = array();
+
 	/**
 	 * Handle feed deletion - delete associated video
 	 *
@@ -286,6 +301,255 @@ class VideoDeletionHandler {
 		} else {
 			error_log( '[FCHub Stream] VideoDeletionHandler::delete_video_from_provider() - UNKNOWN PROVIDER | Provider: ' . $provider . ' | Supported providers: cloudflare_stream, bunny_stream' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return false;
+		}
+	}
+
+	/**
+	 * Capture feed meta before update
+	 *
+	 * Called via filter `fluent_community/feed/update_data` to store old meta
+	 * before feed is updated. This allows us to compare old vs new meta
+	 * in `handle_feed_updated()` to detect video removal.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array  $data Data array for updating the feed.
+	 * @param object $feed Existing Feed model instance (with old meta).
+	 *
+	 * @return array Unmodified data array.
+	 */
+	public function capture_feed_meta_before_update( $data, $feed ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		$feed_id = isset( $feed->id ) ? $feed->id : null;
+
+		if ( empty( $feed_id ) ) {
+			return $data;
+		}
+
+		// Store old meta before update.
+		$old_meta                                   = $feed->meta ?? array();
+		self::$old_meta_cache[ 'feed_' . $feed_id ] = $old_meta;
+
+		error_log( '[FCHub Stream] VideoDeletionHandler::capture_feed_meta_before_update() - Captured old meta | Post ID: ' . $feed_id . ' | Has media_preview: ' . ( isset( $old_meta['media_preview'] ) ? 'yes' : 'no' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		if ( isset( $old_meta['media_preview']['video_id'] ) ) {
+			error_log( '[FCHub Stream] VideoDeletionHandler::capture_feed_meta_before_update() - Old video_id: ' . $old_meta['media_preview']['video_id'] . ' | Provider: ' . ( $old_meta['media_preview']['provider'] ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Handle feed update - detect and delete removed video
+	 *
+	 * Called when a feed (post) is updated. Compares old meta (captured in
+	 * `capture_feed_meta_before_update()`) with new meta to detect if video
+	 * was removed. If video was removed, deletes it from the provider.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param object $feed        Updated feed object (with new meta).
+	 * @param array  $update_data Updated data array (unused).
+	 *
+	 * @return void
+	 */
+	public function handle_feed_updated( $feed, $update_data ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		$feed_id = isset( $feed->id ) ? $feed->id : 'unknown';
+		error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - START | Post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		// Get old meta from cache.
+		$cache_key = 'feed_' . $feed_id;
+		$old_meta  = self::$old_meta_cache[ $cache_key ] ?? null;
+
+		// Clear cache after use.
+		unset( self::$old_meta_cache[ $cache_key ] );
+
+		if ( null === $old_meta ) {
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - SKIPPED | No old meta cached (feed may not have been updated via filter) | Post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return;
+		}
+
+		// Get new meta from updated feed.
+		$new_meta = $feed->meta ?? array();
+
+		error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - Comparing meta | Post ID: ' . $feed_id . ' | Old has media_preview: ' . ( isset( $old_meta['media_preview'] ) ? 'yes' : 'no' ) . ' | New has media_preview: ' . ( isset( $new_meta['media_preview'] ) ? 'yes' : 'no' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		// Check if old meta had a video.
+		$old_video_id = $old_meta['media_preview']['video_id'] ?? null;
+		$old_provider = $old_meta['media_preview']['provider'] ?? null;
+
+		// Check if new meta has a video.
+		$new_video_id = $new_meta['media_preview']['video_id'] ?? null;
+		$new_provider = $new_meta['media_preview']['provider'] ?? null;
+
+		// If old meta had a video but new meta doesn't, video was removed.
+		if ( ! empty( $old_video_id ) && empty( $new_video_id ) ) {
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - VIDEO REMOVED DETECTED | Post ID: ' . $feed_id . ' | Old Video ID: ' . $old_video_id . ' | Provider: ' . ( $old_provider ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			if ( empty( $old_provider ) ) {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - SKIPPED | No provider found in old meta | Post ID: ' . $feed_id . ' | Video ID: ' . $old_video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				return;
+			}
+
+			// Delete video from provider.
+			$success = $this->delete_video_from_provider( $old_video_id, $old_provider );
+
+			if ( $success ) {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - COMPLETE SUCCESS | Video ' . $old_video_id . ' deleted from ' . $old_provider . ' | Post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			} else {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - COMPLETE FAILED | Video ' . $old_video_id . ' deletion failed from ' . $old_provider . ' | Post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+		} elseif ( ! empty( $old_video_id ) && ! empty( $new_video_id ) && $old_video_id !== $new_video_id ) {
+			// Video was replaced with a different video.
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - VIDEO REPLACED DETECTED | Post ID: ' . $feed_id . ' | Old Video ID: ' . $old_video_id . ' | New Video ID: ' . $new_video_id . ' | Provider: ' . ( $old_provider ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			// Check if new meta explicitly specifies which video to replace.
+			$replaces_video_id = $new_meta['media_preview']['replaces_video_id'] ?? null;
+			$replaces_provider = $new_meta['media_preview']['replaces_provider'] ?? null;
+
+			// CRITICAL: Only delete old video if explicit replacement info is provided.
+			// This prevents accidental deletion when button was hidden but somehow video was uploaded.
+			// Frontend should prevent this, but backend adds extra safety layer.
+			if ( empty( $replaces_video_id ) ) {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - SKIPPED DELETION | No explicit replacement info provided. Old video ID: ' . $old_video_id . ' | New video ID: ' . $new_video_id . ' | Post ID: ' . $feed_id . ' | This should be prevented by frontend UI (button hidden).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				// Don't delete old video - keep both videos to prevent data loss.
+				// Admin can manually clean up if needed.
+				return;
+			}
+
+			// Use explicit replacement info if available, otherwise use old video from meta comparison.
+			$video_to_delete = $replaces_video_id ?? $old_video_id;
+			$provider_to_use = $replaces_provider ?? $old_provider;
+
+			if ( $replaces_video_id ) {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - Using explicit replacement info | Video to delete: ' . $video_to_delete . ' | Provider: ' . $provider_to_use ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+
+			if ( ! empty( $provider_to_use ) && ! empty( $video_to_delete ) ) {
+				// Delete old video from provider.
+				$success = $this->delete_video_from_provider( $video_to_delete, $provider_to_use );
+
+				if ( $success ) {
+					error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - COMPLETE SUCCESS | Old video ' . $video_to_delete . ' deleted from ' . $provider_to_use . ' | Post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				} else {
+					error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - COMPLETE FAILED | Old video ' . $video_to_delete . ' deletion failed from ' . $provider_to_use . ' | Post ID: ' . $feed_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
+			}
+		} else {
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_feed_updated() - NO ACTION NEEDED | Post ID: ' . $feed_id . ' | Old video_id: ' . ( $old_video_id ?? 'null' ) . ' | New video_id: ' . ( $new_video_id ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+	}
+
+	/**
+	 * Capture comment meta before update
+	 *
+	 * Called via filter `fluent_community/comment/update_comment_data` to store old meta
+	 * before comment is updated. This allows us to compare old vs new meta
+	 * in `handle_comment_updated()` to detect video removal.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array  $data    Data array for updating the comment.
+	 * @param object $comment Existing Comment model instance (with old meta).
+	 * @param array  $all_data Full data array submitted by the user (unused).
+	 *
+	 * @return array Unmodified data array.
+	 */
+	public function capture_comment_meta_before_update( $data, $comment, $all_data ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		$comment_id = isset( $comment->id ) ? $comment->id : null;
+
+		if ( empty( $comment_id ) ) {
+			return $data;
+		}
+
+		// Store old meta before update.
+		$old_meta = $comment->meta ?? array();
+		self::$old_meta_cache[ 'comment_' . $comment_id ] = $old_meta;
+
+		error_log( '[FCHub Stream] VideoDeletionHandler::capture_comment_meta_before_update() - Captured old meta | Comment ID: ' . $comment_id . ' | Has media_preview: ' . ( isset( $old_meta['media_preview'] ) ? 'yes' : 'no' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		if ( isset( $old_meta['media_preview']['video_id'] ) ) {
+			error_log( '[FCHub Stream] VideoDeletionHandler::capture_comment_meta_before_update() - Old video_id: ' . $old_meta['media_preview']['video_id'] . ' | Provider: ' . ( $old_meta['media_preview']['provider'] ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Handle comment update - detect and delete removed video
+	 *
+	 * Called when a comment is updated. Compares old meta (captured in
+	 * `capture_comment_meta_before_update()`) with new meta to detect if video
+	 * was removed. If video was removed, deletes it from the provider.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param object $comment Updated comment object (with new meta).
+	 * @param object $feed    Feed object that the comment belongs to.
+	 *
+	 * @return void
+	 */
+	public function handle_comment_updated( $comment, $feed ) {
+		$comment_id = isset( $comment->id ) ? $comment->id : 'unknown';
+		error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - START | Comment ID: ' . $comment_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		// Get old meta from cache.
+		$cache_key = 'comment_' . $comment_id;
+		$old_meta  = self::$old_meta_cache[ $cache_key ] ?? null;
+
+		// Clear cache after use.
+		unset( self::$old_meta_cache[ $cache_key ] );
+
+		if ( null === $old_meta ) {
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - SKIPPED | No old meta cached (comment may not have been updated via filter) | Comment ID: ' . $comment_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return;
+		}
+
+		// Get new meta from updated comment.
+		$new_meta = $comment->meta ?? array();
+
+		error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - Comparing meta | Comment ID: ' . $comment_id . ' | Old has media_preview: ' . ( isset( $old_meta['media_preview'] ) ? 'yes' : 'no' ) . ' | New has media_preview: ' . ( isset( $new_meta['media_preview'] ) ? 'yes' : 'no' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		// Check if old meta had a video.
+		$old_video_id = $old_meta['media_preview']['video_id'] ?? null;
+		$old_provider = $old_meta['media_preview']['provider'] ?? null;
+
+		// Check if new meta has a video.
+		$new_video_id = $new_meta['media_preview']['video_id'] ?? null;
+		$new_provider = $new_meta['media_preview']['provider'] ?? null;
+
+		// If old meta had a video but new meta doesn't, video was removed.
+		if ( ! empty( $old_video_id ) && empty( $new_video_id ) ) {
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - VIDEO REMOVED DETECTED | Comment ID: ' . $comment_id . ' | Old Video ID: ' . $old_video_id . ' | Provider: ' . ( $old_provider ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			if ( empty( $old_provider ) ) {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - SKIPPED | No provider found in old meta | Comment ID: ' . $comment_id . ' | Video ID: ' . $old_video_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				return;
+			}
+
+			// Delete video from provider.
+			$success = $this->delete_video_from_provider( $old_video_id, $old_provider );
+
+			if ( $success ) {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - COMPLETE SUCCESS | Video ' . $old_video_id . ' deleted from ' . $old_provider . ' | Comment ID: ' . $comment_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			} else {
+				error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - COMPLETE FAILED | Video ' . $old_video_id . ' deletion failed from ' . $old_provider . ' | Comment ID: ' . $comment_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+		} elseif ( ! empty( $old_video_id ) && ! empty( $new_video_id ) && $old_video_id !== $new_video_id ) {
+			// Video was replaced with a different video.
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - VIDEO REPLACED DETECTED | Comment ID: ' . $comment_id . ' | Old Video ID: ' . $old_video_id . ' | New Video ID: ' . $new_video_id . ' | Provider: ' . ( $old_provider ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			if ( ! empty( $old_provider ) ) {
+				// Delete old video from provider.
+				$success = $this->delete_video_from_provider( $old_video_id, $old_provider );
+
+				if ( $success ) {
+					error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - COMPLETE SUCCESS | Old video ' . $old_video_id . ' deleted from ' . $old_provider . ' | Comment ID: ' . $comment_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				} else {
+					error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - COMPLETE FAILED | Old video ' . $old_video_id . ' deletion failed from ' . $old_provider . ' | Comment ID: ' . $comment_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				}
+			}
+		} else {
+			error_log( '[FCHub Stream] VideoDeletionHandler::handle_comment_updated() - NO ACTION NEEDED | Comment ID: ' . $comment_id . ' | Old video_id: ' . ( $old_video_id ?? 'null' ) . ' | New video_id: ' . ( $new_video_id ?? 'null' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
 	}
 }
