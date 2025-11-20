@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
 	// Try to load SDK manually if autoloader didn't load it.
 	$fchub_stream_sdk_path = dirname( dirname( __DIR__ ) ) . '/vendor/fchub/license-sdks-php/src/License_Manager.php';
-	if ( file_exists( $fchub_stream_sdk_path ) ) {
+	if ( file_exists( $fchub_stream_sdk_path ) && is_readable( $fchub_stream_sdk_path ) ) {
 		require_once $fchub_stream_sdk_path;
 	}
 }
@@ -38,7 +38,9 @@ if ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
  *
  * @since 1.0.0
  */
-class StreamLicenseManager extends \FCHub\License\License_Manager {
+// CRITICAL: Only extend License_Manager if it exists, otherwise create stub class.
+if ( class_exists( 'FCHub\License\License_Manager' ) ) {
+	class StreamLicenseManager extends \FCHub\License\License_Manager {
 
 	/**
 	 * Get product slug
@@ -153,5 +155,115 @@ class StreamLicenseManager extends \FCHub\License\License_Manager {
 	 */
 	public function has_analytics(): bool {
 		return $this->is_active() && $this->is_feature_enabled( 'analytics' );
+	}
+	}
+} else {
+	/**
+	 * Stream License Manager stub class.
+	 *
+	 * Used when SDK is not available. All methods return false/empty to disable license features gracefully.
+	 *
+	 * @since 1.0.0
+	 */
+	class StreamLicenseManager {
+
+		/**
+		 * Get product slug
+		 *
+		 * @since 1.0.0
+		 *
+		 * @return string Product slug.
+		 */
+		protected function get_product_slug(): string {
+			return 'fchub-stream';
+		}
+
+		/**
+		 * Check if license is active.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @return bool Always false when SDK is not available.
+		 */
+		public function is_active(): bool {
+			return false;
+		}
+
+		/**
+		 * Validate license.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @return bool|\WP_Error Always returns WP_Error when SDK is not available.
+		 */
+		public function validate_license() {
+			return new \WP_Error(
+				'sdk_not_available',
+				__( 'License SDK not available. Please ensure plugin is properly installed.', 'fchub-stream' )
+			);
+		}
+
+		/**
+		 * Activate license.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param string $license_key License key.
+		 * @return \WP_Error Always returns WP_Error when SDK is not available.
+		 */
+		public function activate_license( string $license_key ) {
+			return new \WP_Error(
+				'sdk_not_available',
+				__( 'License SDK not available. Please ensure plugin is properly installed.', 'fchub-stream' )
+			);
+		}
+
+		/**
+		 * Deactivate license.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @return \WP_Error Always returns WP_Error when SDK is not available.
+		 */
+		public function deactivate_license() {
+			return new \WP_Error(
+				'sdk_not_available',
+				__( 'License SDK not available. Please ensure plugin is properly installed.', 'fchub-stream' )
+			);
+		}
+
+		/**
+		 * Check if feature is enabled.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param string $feature Feature name.
+		 * @return bool Always false when SDK is not available.
+		 */
+		public function is_feature_enabled( string $feature ): bool {
+			return false;
+		}
+
+		/**
+		 * Check if license has video upload feature.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @return bool Always false when SDK is not available.
+		 */
+		public function has_video_upload(): bool {
+			return false;
+		}
+
+		/**
+		 * Check if license has analytics feature.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @return bool Always false when SDK is not available.
+		 */
+		public function has_analytics(): bool {
+			return false;
+		}
 	}
 }

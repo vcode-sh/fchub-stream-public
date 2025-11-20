@@ -147,10 +147,11 @@ abstract class License_Manager {
 
 		if ( is_wp_error( $response ) ) {
 			// Grace period: Keep working if validation fails temporarily
+			// Reduced from 3 days to 24 hours for faster deactivation when license is deleted
 			$last_validated = $license_data['last_validated_at'] ?? 0;
-			$grace_days     = 3; // ✅ 3 days grace period
+			$grace_hours    = 24; // ✅ 24 hours grace period (reduced from 3 days)
 
-			if ( ( time() - $last_validated ) < ( $grace_days * DAY_IN_SECONDS ) ) {
+			if ( ( time() - $last_validated ) < ( $grace_hours * HOUR_IN_SECONDS ) ) {
 				return $license_data; // Use cached data
 			}
 

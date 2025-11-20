@@ -33,9 +33,208 @@ use function FCHubStream\App\Utils\log_debug;
  * @return void
  */
 return function ( $file ) {
+	// CRITICAL: Check for broken symlink BEFORE loading Composer autoloader.
+	// Composer autoloader will fail if vendor/fchub/license-sdks-php is a broken symlink.
+	$sdk_symlink_path = __DIR__ . '/../vendor/fchub/license-sdks-php';
+	$sdk_is_broken    = false;
+	$sdk_not_found    = false;
+	
+	// Check if SDK path exists at all.
+	if ( ! file_exists( $sdk_symlink_path ) && ! is_link( $sdk_symlink_path ) ) {
+		$sdk_not_found = true;
+		$sdk_is_broken = true;
+	} elseif ( is_link( $sdk_symlink_path ) ) {
+		// Check if symlink exists and if it's broken (target doesn't exist).
+		$symlink_target = @readlink( $sdk_symlink_path ); // Suppress warning if readlink fails.
+		$resolved_path  = @realpath( $sdk_symlink_path ); // Suppress warning if realpath fails.
+		
+		// If realpath returns false, symlink is broken.
+		if ( false === $resolved_path || false === $symlink_target ) {
+			$sdk_is_broken = true;
+		}
+	} elseif ( ! is_dir( $sdk_symlink_path ) ) {
+		// Path exists but is not a directory (and not a symlink).
+		$sdk_not_found = true;
+		$sdk_is_broken = true;
+	}
+	
+	// If SDK is broken or not found, remove it from Composer autoloader.
+	if ( $sdk_is_broken ) {
+		// CRITICAL: Remove FCHub\License namespace from BOTH Composer autoloader files BEFORE loading.
+		// Composer uses both autoload_psr4.php and autoload_static.php (cached).
+		$vendor_dir = __DIR__ . '/../vendor/composer';
+		
+		// Remove from autoload_psr4.php
+		$autoload_psr4_file = $vendor_dir . '/autoload_psr4.php';
+		if ( file_exists( $autoload_psr4_file ) ) {
+			$autoload_psr4_content = file_get_contents( $autoload_psr4_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			// Remove FCHub\License namespace entry.
+			$autoload_psr4_content = preg_replace(
+				"/\s*'FCHub\\\\License\\\\'\s*=>\s*array\([^)]+\),?\s*/",
+				'',
+				$autoload_psr4_content
+			);
+			file_put_contents( $autoload_psr4_file, $autoload_psr4_content ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+		}
+		
+		// Remove from autoload_static.php (cached version)
+		$autoload_static_file = $vendor_dir . '/autoload_static.php';
+		if ( file_exists( $autoload_static_file ) ) {
+			$autoload_static_content = file_get_contents( $autoload_static_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			// Remove from $prefixLengthsPsr4 array (line 46)
+			$autoload_static_content = preg_replace(
+				"/\s*'FCHub\\\\License\\\\'\s*=>\s*\d+,?\s*/",
+				'',
+				$autoload_static_content
+			);
+			// Remove from $prefixDirsPsr4 array (entire entry with array)
+			$autoload_static_content = preg_replace(
+				"/\s*'FCHub\\\\License\\\\'\s*=>\s*array\s*\([^)]+\),?\s*/",
+				'',
+				$autoload_static_content
+			);
+			// Remove from $classMap array (all FCHub\License classes, lines 160-163)
+			$autoload_static_content = preg_replace(
+				"/\s*'FCHub\\\\License\\\\[^']+'\s*=>\s*__DIR__\s*\.\s*'\/\.\.'\s*\.\s*'\/fchub\/license-sdks-php\/[^']+',?\s*/",
+				'',
+				$autoload_static_content
+			);
+			file_put_contents( $autoload_static_file, $autoload_static_content ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+		}
+		
+		// Remove from autoload_classmap.php
+		$autoload_classmap_file = $vendor_dir . '/autoload_classmap.php';
+		if ( file_exists( $autoload_classmap_file ) ) {
+			$autoload_classmap_content = file_get_contents( $autoload_classmap_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			// Remove all FCHub\License class mappings
+			$autoload_classmap_content = preg_replace(
+				"/\s*'FCHub\\\\License\\\\[^']+'\s*=>\s*\$vendorDir\s*\.\s*'\/fchub\/license-sdks-php\/[^']+',?\s*/",
+				'',
+				$autoload_classmap_content
+			);
+			file_put_contents( $autoload_classmap_file, $autoload_classmap_content ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+		}
+		
+		// Log warning but don't break plugin - license features will be disabled.
+		if ( function_exists( 'log_debug' ) ) {
+			if ( $sdk_not_found ) {
+				log_debug( 'License SDK not found at: ' . $sdk_symlink_path );
+			} else {
+				$symlink_target_display = isset( $symlink_target ) ? $symlink_target : 'unknown';
+				log_debug( 'License SDK symlink is broken. Target: ' . $symlink_target_display );
+			}
+			log_debug( 'License features will be disabled. Please ensure SDK package is included in release.' );
+		}
+	}
+
+	// CRITICAL: Register custom autoloader for SDK BEFORE Composer autoloader.
+	// This prevents Composer from trying to load classes through broken symlinks.
+	// Use high priority (prepend) to run before Composer autoloader.
+	spl_autoload_register(
+		function ( $class ) use ( $sdk_is_broken ) {
+			// Only handle FCHub\License namespace.
+			if ( 0 !== strpos( $class, 'FCHub\\License\\' ) ) {
+				return false;
+			}
+
+			// If SDK symlink is broken, suppress error and return false (graceful degradation).
+			// This prevents Composer autoloader from trying to load through broken symlink.
+			if ( $sdk_is_broken ) {
+				// Suppress any warnings/errors and return false to let other autoloaders handle it.
+				return false;
+			}
+
+			// Convert namespace to file path.
+			$relative_class = substr( $class, strlen( 'FCHub\\License\\' ) );
+			$file_path      = str_replace( '\\', '/', $relative_class ) . '.php';
+
+			// Try multiple SDK paths.
+			$sdk_base_paths = array(
+				__DIR__ . '/../vendor/fchub/license-sdks-php',
+				defined( 'FCHUB_STREAM_DIR' ) ? FCHUB_STREAM_DIR . 'vendor/fchub/license-sdks-php' : null,
+			);
+
+			foreach ( $sdk_base_paths as $sdk_base ) {
+				if ( null === $sdk_base ) {
+					continue;
+				}
+
+				$full_path = $sdk_base . '/src/' . $file_path;
+
+				// Try to resolve symlink, but check original path if resolution fails.
+				$resolved_path = realpath( $full_path );
+				$check_path    = ( false !== $resolved_path ) ? $resolved_path : $full_path;
+
+				// Check if file exists and is readable.
+				if ( file_exists( $check_path ) && is_readable( $check_path ) ) {
+					require_once $check_path;
+					return true;
+				}
+			}
+
+			return false;
+		},
+		true, // Prepend to autoload stack (run before Composer autoloader).
+		true  // Throw exception if class not found (let Composer handle it).
+	);
+
+	// CRITICAL: Suppress warnings from Composer autoloader if SDK is broken.
+	// This prevents "Failed to open stream" warnings when SDK package is missing.
+	$original_error_reporting = null;
+	$error_handler            = null;
+	
+	if ( $sdk_is_broken ) {
+		// Start output buffering to catch any warnings/errors.
+		ob_start();
+		
+		// Temporarily disable error reporting for warnings/notices.
+		$original_error_reporting = error_reporting();
+		error_reporting( $original_error_reporting & ~E_WARNING & ~E_NOTICE );
+		
+		// Set error handler to suppress SDK-related warnings.
+		$error_handler = set_error_handler(
+			function ( $errno, $errstr, $errfile, $errline ) use ( &$error_handler ) {
+				// Suppress ALL warnings/notices about missing SDK files from Composer autoloader.
+				if ( ( E_WARNING === $errno || E_NOTICE === $errno ) &&
+					( strpos( $errstr, 'fchub/license-sdks-php' ) !== false ||
+					  strpos( $errstr, 'Failed to open stream' ) !== false ||
+					  strpos( $errstr, 'Failed opening' ) !== false ||
+					  strpos( $errfile, 'ClassLoader.php' ) !== false ) ) {
+					// Suppress this specific error - SDK is intentionally missing.
+					return true;
+				}
+				
+				// Call previous error handler for other errors.
+				if ( null !== $error_handler && is_callable( $error_handler ) ) {
+					return call_user_func( $error_handler, $errno, $errstr, $errfile, $errline );
+				}
+				
+				return false;
+			},
+			E_WARNING | E_NOTICE
+		);
+	}
+
 	// Ensure autoloader is loaded before registering hooks.
+	// Use @ to suppress any warnings if error handler didn't catch them.
 	if ( file_exists( __DIR__ . '/../vendor/autoload.php' ) ) {
-		require_once __DIR__ . '/../vendor/autoload.php';
+		if ( $sdk_is_broken ) {
+			// Suppress warnings during autoloader loading.
+			@require_once __DIR__ . '/../vendor/autoload.php'; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		} else {
+			require_once __DIR__ . '/../vendor/autoload.php';
+		}
+	}
+	
+	// Clean output buffer, restore error reporting and error handler after autoloader is loaded.
+	if ( $sdk_is_broken ) {
+		ob_end_clean(); // Discard any warnings that were buffered.
+		if ( null !== $original_error_reporting ) {
+			error_reporting( $original_error_reporting );
+		}
+		if ( null !== $error_handler ) {
+			restore_error_handler();
+		}
 	}
 
 	// CRITICAL: Ensure SDK is loaded before StreamLicenseManager is used.
@@ -49,10 +248,15 @@ return function ( $file ) {
 		);
 
 		foreach ( $sdk_paths as $sdk_path ) {
-			if ( file_exists( $sdk_path ) ) {
-				require_once $sdk_path;
+			// Use realpath to resolve symlinks, but check original path if realpath fails.
+			$resolved_sdk_path = realpath( $sdk_path );
+			$check_path        = ( false !== $resolved_sdk_path ) ? $resolved_sdk_path : $sdk_path;
+			
+			if ( file_exists( $check_path ) && is_readable( $check_path ) ) {
+				require_once $check_path;
 				// Also try to load autoloader from SDK if it exists.
-				$sdk_autoload = dirname( dirname( $sdk_path ) ) . '/vendor/autoload.php';
+				$sdk_dir       = dirname( dirname( $check_path ) );
+				$sdk_autoload  = $sdk_dir . '/vendor/autoload.php';
 				if ( file_exists( $sdk_autoload ) ) {
 					require_once $sdk_autoload;
 				}

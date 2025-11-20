@@ -3,7 +3,7 @@
         'name' => 'vcode-sh/fchub-stream',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'd78c3fa56b079e2078e3ac2ecbebfde443960602',
+        'reference' => '254a8f34a915b5982bd031cc88c66a9811e160c8',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -175,7 +175,7 @@
         'vcode-sh/fchub-stream' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'd78c3fa56b079e2078e3ac2ecbebfde443960602',
+            'reference' => '254a8f34a915b5982bd031cc88c66a9811e160c8',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -5,7 +5,7 @@ Tags: video, streaming, cloudflare, bunny.net, fluentcommunity, upload, media
 Requires at least: 6.7
 Tested up to: 6.9.0
 Requires PHP: 8.3
-Stable tag: 0.9.3
+Stable tag: 0.9.6
 License: Proprietary
 License URI: https://github.com/vcode-sh/fchub-stream-public/blob/main/LICENSE
 
@@ -65,6 +65,15 @@ If your enterprise can handle video streaming built by one dev who hates media l
 == Changelog ==
 
 Full changelog: [CHANGELOG.md](https://github.com/vcode-sh/fchub-stream-public/blob/main/CHANGELOG.md)
+
+= 0.9.6 - 2025-11-20 =
+* Critical fix: Fixed fatal error when SDK package is missing - Plugin now gracefully handles missing SDK package instead of crashing. Added stub class for StreamLicenseManager when SDK is unavailable. Fixed readlink() warnings. Plugin works even if SDK package is missing (license features disabled).
+
+= 0.9.5 - 2025-11-20 =
+* Fixed broken symlinks in release builds - Build process now converts SDK symlinks to real copies. Users get fully functional plugins without needing composer. No more "file not found" errors. Because broken symlinks aren't a feature, they're broken.
+
+= 0.9.4 - 2025-11-20 =
+* License validation actually works now - Fixed license validation sometimes saying "all good!" when your license was actually deleted. Now when you delete a license, the plugin actually notices. Revolutionary? No. Expected? Yes. Fixed? Finally.
 
 = 0.9.3 - 2025-11-19 =
 * Videos no longer disappear when editing posts - Used `array_key_exists()` instead of `isset()` to differentiate between "user didn't touch media" and "user explicitly deleted it".

@@ -4,6 +4,39 @@ All notable changes to FCHub Stream. Built out of media library trauma. Document
 
 ---
 
+## [0.9.6] - 2025-11-20
+
+### Fixed
+
+**Critical: Fatal Error When SDK Package Missing**
+- Fixed fatal error when `vendor/fchub/license-sdks-php` is missing or broken
+- Plugin now gracefully handles missing SDK package instead of crashing
+- Added stub class for `StreamLicenseManager` when SDK is unavailable (all methods return false/errors)
+- Fixed `readlink()` warnings when checking broken symlinks
+- Improved error handling in `boot/app.php` to check file existence before operations
+- Plugin works even if SDK package is missing (license features will be disabled gracefully)
+- Built because plugins that crash when files are missing aren't plugins, they're broken. And broken isn't a feature.
+
+## [0.9.5] - 2025-11-20
+
+### Fixed
+
+**Broken Symlinks in Release Builds**
+- Fixed broken symlinks in release ZIPs that caused "file not found" errors for end users
+- Build process now converts `vendor/fchub/license-sdks-php` symlinks to real copies before packaging
+- Users get fully functional plugins without needing composer or local SDK packages
+- Added verification steps in `build-release.sh` and `sync-to-public.sh` to ensure no symlinks slip through
+- Built because broken symlinks aren't a feature, they're broken. And users deserve plugins that work out of the box.
+
+## [0.9.4] - 2025-11-20
+
+### Fixed
+
+**License Validation Actually Works Now**
+- Fixed license validation sometimes saying "all good!" when your license was actually expired. Turns out it forgot to check if licenses still exist before giving you the thumbs up. Classic.
+- Now when you delete a license, the plugin actually notices. Revolutionary? No. Expected? Yes. Fixed? Finally.
+- Built because licenses that validate after deletion aren't a feature. They're ghosts. And we don't do ghosts.
+
 ## [0.9.3] - 2025-11-19
 
 ### Changed

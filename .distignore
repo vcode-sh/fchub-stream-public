@@ -95,6 +95,9 @@ pnpm-debug.log*
 .cache/
 *.code-workspace
 
+# Built ZIP files (prevent recursive packaging)
+*.zip
+
 # Environment Files
 .env
 .env.local

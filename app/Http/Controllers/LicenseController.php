@@ -61,19 +61,63 @@ class LicenseController {
 					log_debug( 'License SDK check - Autoloader file not found!' );
 				}
 
-				// Final check - if still not available, return error with detailed info.
-				if ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
-					$sdk_path   = rtrim( $plugin_dir, '/' ) . '/vendor/fchub/license-sdks-php';
-					$sdk_exists = file_exists( $sdk_path ) || is_link( $sdk_path );
-					log_debug( 'License SDK not available after autoload check' );
-					log_debug( 'SDK path: ' . $sdk_path );
-					log_debug( 'SDK exists: ' . ( $sdk_exists ? 'YES' : 'NO' ) );
+			// Final check - if still not available, try to load SDK manually.
+			if ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
+				$sdk_path   = rtrim( $plugin_dir, '/' ) . '/vendor/fchub/license-sdks-php';
+				$sdk_exists = file_exists( $sdk_path ) || is_link( $sdk_path );
+				log_debug( 'License SDK not available after autoload check' );
+				log_debug( 'SDK path: ' . $sdk_path );
+				log_debug( 'SDK exists: ' . ( $sdk_exists ? 'YES' : 'NO' ) );
 
-					if ( $sdk_exists ) {
-						$real_path = realpath( $sdk_path );
-						log_debug( 'SDK real path: ' . ( $real_path ? $real_path : 'NOT RESOLVABLE' ) );
+				// If SDK physically exists, try to load it manually.
+				if ( $sdk_exists ) {
+					$real_path = realpath( $sdk_path );
+					log_debug( 'SDK real path: ' . ( $real_path ? $real_path : 'NOT RESOLVABLE' ) );
+					
+					// Determine actual SDK directory path.
+					$actual_sdk_dir = $real_path ? $real_path : $sdk_path;
+					
+					// Try to load SDK classes manually.
+					$sdk_manager_file = $actual_sdk_dir . '/src/License_Manager.php';
+					log_debug( 'Attempting to load SDK from: ' . $sdk_manager_file );
+					log_debug( 'File exists: ' . ( file_exists( $sdk_manager_file ) ? 'YES' : 'NO' ) );
+					log_debug( 'File readable: ' . ( is_readable( $sdk_manager_file ) ? 'YES' : 'NO' ) );
+					
+					if ( file_exists( $sdk_manager_file ) && is_readable( $sdk_manager_file ) ) {
+						require_once $sdk_manager_file;
+						log_debug( 'License_Manager.php loaded' );
+						
+						// Also try to load other SDK classes.
+						$sdk_classes = array(
+							'License_API_Client.php',
+							'License_Storage.php',
+							'License_Validator.php',
+						);
+						
+						$sdk_src_dir = dirname( $sdk_manager_file );
+						foreach ( $sdk_classes as $class_file ) {
+							$class_path = $sdk_src_dir . '/' . $class_file;
+							if ( file_exists( $class_path ) && is_readable( $class_path ) ) {
+								require_once $class_path;
+								log_debug( "Loaded: $class_file" );
+							}
+						}
+						
+						// Also try to load SDK autoloader if it exists (for SDK dependencies).
+						$sdk_autoload = $actual_sdk_dir . '/vendor/autoload.php';
+						if ( file_exists( $sdk_autoload ) && is_readable( $sdk_autoload ) ) {
+							require_once $sdk_autoload;
+							log_debug( 'SDK autoloader loaded' );
+						}
+						
+						log_debug( 'SDK loaded manually. Class exists: ' . ( class_exists( 'FCHub\License\License_Manager' ) ? 'YES' : 'NO' ) );
+					} else {
+						log_debug( 'Cannot load SDK manually - file not found or not readable' );
 					}
+				}
 
+				// If class still doesn't exist after manual load, return error.
+				if ( ! class_exists( 'FCHub\License\License_Manager' ) ) {
 					return new WP_Error(
 						'sdk_not_available',
 						__( 'License SDK not available. Please ensure composer dependencies are installed.', 'fchub-stream' ),
@@ -88,6 +132,7 @@ class LicenseController {
 						)
 					);
 				}
+			}
 			}
 
 			if ( ! class_exists( 'FCHubStream\App\Services\StreamLicenseManager' ) ) {
@@ -401,6 +446,51 @@ class LicenseController {
 					array(
 						'status'     => 400,
 						'error_data' => $result->get_error_data(),
+					)
+				);
+			}
+
+			// Check if API returned valid: false (license deleted, expired, suspended, etc.)
+			if ( isset( $result['valid'] ) && $result['valid'] === false ) {
+				$reason = $result['reason'] ?? __( 'License validation failed.', 'fchub-stream' );
+				
+				log_debug( 'Validate: License invalid - ' . $reason );
+				
+				// Clear license data since it's invalid
+				if ( class_exists( 'FCHub\License\License_Storage' ) ) {
+					$storage = new \FCHub\License\License_Storage( 'fchub-stream' );
+					$storage->clear();
+					log_debug( 'Validate: License data cleared from storage.' );
+				}
+
+				// Track license validation failure in PostHog.
+				PostHogService::capture_event(
+					'license_validation_failed',
+					array(
+						'error_code'    => 'license_invalid',
+						'error_message' => $reason,
+					)
+				);
+
+				// Track license validation failure in Sentry.
+				SentryService::capture_message(
+					'License validation failed: ' . $reason,
+					'warning'
+				);
+				SentryService::add_breadcrumb(
+					'License validation failed',
+					'license.validation',
+					'warning',
+					array(
+						'reason' => $reason,
+					)
+				);
+
+				return new WP_Error(
+					'license_invalid',
+					$reason,
+					array(
+						'status' => 400,
 					)
 				);
 			}
