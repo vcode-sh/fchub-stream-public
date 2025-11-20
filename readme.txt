@@ -33,7 +33,7 @@ Direct uploads to Cloudflare Stream or Bunny.net from your FluentCommunity. Zero
 
 == Installation ==
 
-1. Download the plugin from [GitHub Releases](https://github.com/vcode-sh/fchub-stream-public/releases)
+1. Download the plugin from [fchub.co](https://fchub.co)
 2. Upload the plugin to your WordPress plugins directory
 3. Activate the plugin
 4. Get your license at fchub.co
