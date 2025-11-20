@@ -71,6 +71,9 @@ if ( class_exists( 'YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
 		'fchub-stream'
 	);
 
+	// Set branch to 'main' (GitHub default, not 'master').
+	$fchub_stream_update_checker->setBranch( 'main' );
+
 	// Enable release assets to use the ZIP files from GitHub releases.
 	$fchub_stream_update_checker->getVcsApi()->enableReleaseAssets();
 }
