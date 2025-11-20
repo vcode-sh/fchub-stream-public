@@ -23,6 +23,15 @@ knowledgebase/
 todo/
 beta-test/
 
+# SECURITY: Internal documentation - NEVER publish these!
+BYPASS_PROTECTION.md
+SECURITY_ANALYSIS.md
+ZABEZPIECZENIA_EDYCJA_VIDEO.md
+deep-verification-report.md
+paths.md
+todo-round1.md
+ideas/
+
 # Vue.js Source Files (keep only dist/)
 admin-app/src/
 admin-app/node_modules/
