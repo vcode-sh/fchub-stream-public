@@ -6,23 +6,13 @@ Video streaming for FluentCommunity. Built because WordPress media library and v
 
 Direct uploads to Cloudflare Stream. No media library gymnastics. No manual conversion. Upload. Done.
 
-## ⚠️ Beta Testing - Phase 1
-
-**This is beta software.** We're testing Cloudflare Stream integration only (Phase 1).
-
-Bunny.net support exists but isn't tested yet. Stick to Cloudflare for now.
-
-**Beta Testing Guide**: https://docs.fchub.co/docs/fchub-stream/beta-testing
-
-Found bugs? Shit breaks? That's the point. Report it.
-
 ## What It Does
 
 - **Direct Uploads** - Videos to Cloudflare Stream. Zero WordPress media library involvement.
 - **Drag & Drop** - Upload interface that works.
 - **Auto Cleanup** - Delete post? Video deletes too.
 
-Two providers in code (Cloudflare + Bunny.net). Testing Cloudflare first. Bunny.net Phase 2.
+Two providers in code (Cloudflare + Bunny.net).
 
 ## Part of FCHub Ecosystem
 
@@ -47,18 +37,6 @@ Independent plugin for FluentCommunity. Part of **[FCHub.co](https://fchub.co)**
 1. WordPress → Plugins → Upload
 2. Activate
 3. Done. No composer. Just works.
-
-## Setup Cloudflare Stream
-
-1. Get [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/) account
-2. Dashboard → grab:
-   - Account ID
-   - API Token (Stream permissions)
-   - Customer Subdomain
-3. WordPress → FluentCommunity → FCHub Stream → Cloudflare tab
-4. Paste. Save. Works.
-
-**Don't touch Bunny.net settings.** Phase 2. Not ready.
 
 ## Usage
 
@@ -92,11 +70,11 @@ Built by [Vibe Code](https://x.com/vcode_sh). Independent dev. Zero corporate fu
 
 ## License
 
-**Beta = Free. After Beta = Pay.**
+**Beta = Trial. After Beta = Pay.**
 
-Right now? Free during beta testing. You're doing me a favor finding bugs.
+Right now? Free trial licenseduring beta testing. You're doing me a favor finding bugs.
 
-After beta? Commercial license. Price TBA. When I figure it out, you'll know.
+After beta? Commercial license.
 
 Beta testing means:
 - Test it. Break it. Report bugs.
@@ -109,4 +87,4 @@ Using this during beta = you agreed to the above. Deal? Deal.
 
 Built out of media library trauma. Streams out of necessity.
 
-**Part of [FCHub.co](https://fchub.co)** - FluentCommunity tools that work.
+**Part of [FCHub.co](https://fchub.co)** - FluentCommunity & FluentCarttools that work.
